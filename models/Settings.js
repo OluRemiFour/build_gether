@@ -1,19 +1,39 @@
 const mongoose = require("mongoose");
 
 const settingSchema = new mongoose.Schema({
-  student: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Student",
+    ref: "User",
     required: true,
     unique: true,
   },
 
-  phoneNumber: String,
-  address: String,
+  fullName: String,
+  email: String,
+  company: String,
+  location: String,
 
-  guardianName: String,
-  guardianNumber: String,
-  guardianAddress: String,
+  bio: String,
+  skills: [
+    {
+      name: String,
+      level: {
+        type: String,
+        enum: ["beginner", "intermediate", "advanced", "expert"],
+      },
+    },
+  ],
+  availability: {
+    type: String,
+    enum: ["full-time", "part-time", "weekends", "flexible"],
+  },
+  experienceLevel: {
+    type: String,
+    enum: ["beginner", "intermediate", "advanced", "expert"],
+  },
+  portfolioUrl: String,
+  githubUrl: String,
+  linkedinUrl: String,
 
   notification: {
     type: String,

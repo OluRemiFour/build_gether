@@ -7,6 +7,8 @@ const {
 } = require("../middleware/validation.js");
 const { transporter, sendOtpEmail } = require("../middleware/sendEmail.js");
 const { CollaboratorProfile } = require("../models/CollaboratorProfile.js");
+const PendingUser = require("../models/PendingUser.js");
+const { ProjectOwnerProfile } = require("../models/ProjectOwnerProfile.js");
 
 const generateToken = (userId, role, product_type) => {
   return jwt.sign({ userId, role, product_type }, process.env.JWT_SECRET, {
@@ -16,65 +18,103 @@ const generateToken = (userId, role, product_type) => {
 
 const register = async (req, res) => {
   try {
-    const {
-      fullName,
-      email,
-      password,
-      confirmPassword,
-      role,
-      // terms,
-    } = req.body;
+    const { fullName, email, password, confirmPassword, role } = req.body;
 
-    // VALIDATIONS
-    if (!validateEmail(email))
+    const allowedRoles = ["project_owner", "collaborator"];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role selected" });
+    }
+
+    if (!fullName || !email || !password || !confirmPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (!validateEmail(email)) {
       return res.status(400).json({ message: "Invalid email format" });
+    }
 
-    if (!validatePassword(password))
+    if (!validatePassword(password)) {
       return res
         .status(400)
         .json({ message: "Password must be at least 6 characters" });
+    }
 
-    if (password !== confirmPassword)
+    if (password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match" });
+    }
 
-    // if (!terms)
-    //   return res.status(400).json({ message: "You must accept terms" });
-
-    // CHECK EXISTING EMAIL
-    const existing = await User.findOne({ email });
-    if (existing)
+    // Already registered?
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
+    }
 
-    // OTP GENERATION
+    // Prevent duplicate pending registration
+    await PendingUser.deleteOne({ email });
+
     const otp = Math.floor(100000 + Math.random() * 900000);
     const otpExpires = Date.now() + 10 * 60 * 1000;
 
-    try {
-      await sendOtpEmail(email, schoolName, otp);
-    } catch (emailError) {
-      console.error("EMAIL SENDING FAILED with details:", emailError); // Better logging
-      return res.status(500).json({
-        message: "Failed to send OTP email.",
-        error: emailError.message, // Now shows real message
-      });
-    }
-
-    // IF EMAIL SUCCESS → CREATE USER
-    const user = new User({
+    await PendingUser.create({
       fullName,
       email,
       password,
       role,
       otp,
       otpExpires,
-      isVerified: false,
     });
 
-    if (role === "project_owner") {
-      await CollaboratorProfile.create({
+    await sendOtpEmail(email, fullName, otp);
+
+    return res.status(200).json({
+      message: "OTP sent. Please verify your email.",
+    });
+  } catch (err) {
+    console.error("REGISTER ERROR:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    // Find pending registration
+    const pendingUser = await PendingUser.findOne({ email });
+
+    if (!pendingUser) {
+      return res.status(404).json({ message: "No pending registration found" });
+    }
+
+    // OTP checks
+    if (pendingUser.otp !== Number(otp)) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (pendingUser.otpExpires < Date.now()) {
+      await PendingUser.deleteOne({ email });
+      return res.status(400).json({ message: "OTP has expired" });
+    }
+
+    // Create verified user
+    const user = await User.create({
+      fullName: pendingUser.fullName,
+      email: pendingUser.email,
+      password: pendingUser.password,
+      role: pendingUser.role,
+      isVerified: true,
+    });
+
+    // Create profile AFTER user exists
+    if (user.role === "project_owner") {
+      await ProjectOwnerProfile.create({
         userId: user._id,
-        name: fullName,
-        email: email,
+        name: user.fullName,
+        email: user.email,
         bio: "",
         location: "",
         company: "",
@@ -82,11 +122,11 @@ const register = async (req, res) => {
         githubUrl: "",
         linkedinUrl: "",
       });
-    } else if (role === "collaborator") {
+    } else if (user.role === "collaborator") {
       await CollaboratorProfile.create({
         userId: user._id,
-        name: fullName,
-        email: email,
+        name: user.fullName,
+        email: user.email,
         bio: "",
         location: "",
         skills: [],
@@ -98,49 +138,15 @@ const register = async (req, res) => {
       });
     }
 
-    await user.save();
+    // Cleanup pending data
+    await PendingUser.deleteOne({ email });
 
-    return res.status(201).json({
-      message: "User registered successfully. OTP sent to email.",
-    });
-  } catch (error) {
-    console.log("REGISTER ERROR:", error);
-    return res.status(500).json({ message: error.message });
-  }
-};
-
-const verifyOtp = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp)
-      return res.status(400).json({ message: "Email and OTP are required" });
-
-    const user = await User.findOne({ email });
-
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    if (user.isVerified)
-      return res.status(400).json({ message: "Account already verified" });
-
-    if (user.otp !== otp)
-      return res.status(400).json({ message: "Invalid OTP" });
-
-    if (user.otpExpires < Date.now())
-      return res.status(400).json({ message: "OTP has expired" });
-
-    // MARK USER AS VERIFIED
-    user.isVerified = true;
-    user.otp = null;
-    user.otpExpires = null;
-
-    await user.save();
-
-    return res.json({
-      message: "Email verified successfully, You can now Log in.",
+    return res.status(200).json({
+      message: "Email verified successfully. You can now log in.",
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("VERIFY OTP ERROR:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -191,36 +197,49 @@ const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    let user = null;
+    // 1️⃣ Validate input
+    if (!email || !password || !role) {
+      return res
+        .status(400)
+        .json({ message: "Email, password, and role are required" });
+    }
 
-    user = await User.findOne({ email, role });
+    // 2️⃣ Find user by email ONLY
+    const user = await User.findOne({ email });
 
-    if (!user)
-      return res.status(404).json({ message: "Invalid email or password" });
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch)
+    if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });
+    }
 
-    if (
-      user.role !== "collaborator" ||
-      (user.role !== "project_owner" && !user.isVerified)
-    ) {
+    // 3️⃣ Role check (extra safety)
+    if (user.role !== role) {
+      return res.status(403).json({ message: "Role mismatch" });
+    }
+
+    // 4️⃣ Password check
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    // 5️⃣ Verification check (VERY IMPORTANT)
+    if (!user.isVerified) {
       return res.status(403).json({
         message: "Your email is not verified. Please verify your account.",
       });
     }
-    // const token = generateToken(user._id, user.role, user.product_type);
+
+    // 6️⃣ Generate token
     const token = generateToken(user._id, user.role);
 
-    // 7️⃣ Return success
-    return res.json({
+    return res.status(200).json({
       message: "Login successful",
       user: user.toJSON(),
       token,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("LOGIN ERROR:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 

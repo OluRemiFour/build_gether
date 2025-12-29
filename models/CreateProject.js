@@ -38,17 +38,24 @@ const projectSchema = new mongoose.Schema({
     enum: ["all", "active", "completed", "on-hold", "cancelled", "draft"],
     default: "active",
   },
-  applicant: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Applicant",
-    required: true,
-  },
-
-  owner: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
+  applicants: [
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      roleAppliedFor: String,
+      status: {
+        type: String,
+        enum: ["pending", "accepted", "rejected"],
+        default: "pending",
+      },
+      appliedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
 
   collaborators: [
     {
@@ -56,6 +63,32 @@ const projectSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+
+  invites: [
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+      status: {
+        type: String,
+        enum: ["pending", "accepted", "rejected"],
+        default: "pending",
+      },
+      invitedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,

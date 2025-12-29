@@ -1,6 +1,12 @@
-const CollaboratorProfileSchema = new Schema(
+const { default: mongoose } = require("mongoose");
+
+const CollaboratorProfileSchema = new mongoose.Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     name: String,
     email: String,
     bio: String,
@@ -29,7 +35,7 @@ const CollaboratorProfileSchema = new Schema(
   { timestamps: true }
 );
 
-export const CollaboratorProfile = model(
+const CollaboratorProfile = mongoose.model(
   "CollaboratorProfile",
   CollaboratorProfileSchema
 );

@@ -4,9 +4,10 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/database");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
-const examRoutes = require("./routes/examRoutes");
-const classRoutes = require("./routes/classRoutes");
-const emailTest = require("./routes/testRoutes");
+const applicantRoutes = require("./routes/applicantRoutes");
+const projectRoutes = require("./routes/projectRoutes");
+const serviceRoutes = require("./routes/serviceRoutes");
+
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 
 dotenv.config();
@@ -23,9 +24,9 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/exams", examRoutes);
-app.use("/api/class", classRoutes);
-app.use("/api/test", emailTest);
+app.use("/api/applicant", applicantRoutes);
+app.use("/api/project", projectRoutes);
+app.use("/api/service", serviceRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -1,22 +1,25 @@
 const Settings = require("../models/Settings");
-const Student = require("../models/Student");
 
 const personalInfo = async (req, res) => {
   const {
-    phoneNumber,
-    address,
-    guardianName,
-    guardianNumber,
-    guardianAddress,
+    fullName,
+    company,
+    bio,
+    loaction,
+    portfolioUrl,
+    githubUrl,
+    linkedinUrl,
   } = req.body;
 
   try {
     if (
-      !phoneNumber ||
-      !address ||
-      !guardianName ||
-      !guardianNumber ||
-      !guardianAddress
+      !fullName ||
+      !company ||
+      !bio ||
+      !loaction ||
+      !linkedinUrl ||
+      !githubUrl ||
+      !portfolioUrl
     ) {
       return res
         .status(400)
@@ -26,11 +29,13 @@ const personalInfo = async (req, res) => {
     const setting = await Settings.findOneAndUpdate(
       { student: req.userId },
       {
-        phoneNumber,
-        address,
-        guardianName,
-        guardianNumber,
-        guardianAddress,
+        fullName,
+        company,
+        bio,
+        loaction,
+        linkedinUrl,
+        githubUrl,
+        portfolioUrl,
       },
       { new: true, upsert: true }
     );
@@ -57,7 +62,7 @@ const notification = async (req, res) => {
 
   try {
     const setting = await Settings.findOneAndUpdate(
-      { student: req.userId },
+      { user: req.userId },
       { notification: preference },
       { new: true, upsert: true }
     );

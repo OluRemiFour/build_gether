@@ -1,254 +1,167 @@
-const Applicant = require("../models/Applicant");
+const mongoose = require("mongoose");
 const Project = require("../models/CreateProject");
 const User = require("../models/User");
+const Applicant = require("../models/Applicant");
+const ProfileView = require("../models/ProfileView");
 
-const createProject = async (req, res) => {
+const matchScore = async (req, res) => {
   try {
-    const {
-      projectTitle,
-      projectDescription,
-      rolesNeeded,
-      projectDetails,
-      techStack,
-      owner,
-    } = req.body;
-    if (
-      !projectTitle ||
-      !projectDescription ||
-      !rolesNeeded ||
-      !techStack ||
-      !projectDetails.experienceLevel ||
-      !projectDetails.timeline ||
-      !projectDetails.teamSize ||
-      !owner
-    ) {
-      return res.status(400).json({
-        message:
-          "Project title, Project Description, Roles, Project Details, Project Stack are required",
-      });
+    const { userId } = req.params;
+
+    if (!userId)
+      return res.status(400).json({ message: "User ID is required" });
+
+    const user = await User.findById(userId);
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const projects = await Project.find({ projectStatus: "active" });
+
+    let matchedProjects = [];
+
+    for (let project of projects) {
+      let score = 0;
+
+      // 1️⃣ Role match (30 points)
+      if (project.rolesNeeded.includes(user.role)) {
+        score += 30;
+      }
+
+      // 2️⃣ Skill match (10 points per skill)
+      const commonSkills = user.skills.filter((skill) =>
+        project.techStack.includes(skill)
+      );
+      score += commonSkills.length * 10;
+
+      // 3️⃣ Experience level match (20 points)
+      if (user.experienceLevel === project.projectDetails.experienceLevel) {
+        score += 20;
+      }
+
+      // 4️⃣ Team size preference (optional)
+      if (user.preferredTeamSize === project.projectDetails.teamSize) {
+        score += 10;
+      }
+
+      // Only keep good matches
+      if (score >= 50) {
+        matchedProjects.push({
+          project,
+          score,
+          matchedSkills: commonSkills,
+        });
+      }
     }
 
-    // Check if owner IDs exist
-    const ownerExists = await User.find({ _id: { $in: req.userId } });
-    if (ownerExists.length !== owner.length) {
-      return res.status(400).json({ message: "Invalid owner ID(s) provided" });
-    }
+    // Sort best matches first
+    matchedProjects.sort((a, b) => b.score - a.score);
 
-    const newProject = new Project({
-      projectTitle,
-      projectDescription,
-      rolesNeeded,
-      projectDetails,
-      techStack,
-      owner: req.userId,
+    return res.status(200).json({
+      message: "Matched projects retrieved successfully",
+      count: matchedProjects.length,
+      data: matchedProjects,
     });
+  } catch (error) {
+    console.error("MATCH SCORE ERROR:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
 
-    await newProject.save();
-    res
-      .status(201)
-      .json({ message: "Project created successfully", newProject });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const getTotalProjects = async (req, res) => {
+const getSuccessfulMatches = async (req, res) => {
   try {
-    const totalProjects = await Project.countDocuments();
-    const ttProject = await Project.find();
-    res
-      .status(200)
-      .json({ message: "Total projects fetched successfully", totalProjects });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const getActiveProjects = async (req, res) => {
-  try {
-    const activeProjects = await Project.countDocuments({
-      projectStatus: "active",
-    });
+    const ownerId = new mongoose.Types.ObjectId(req.user.userId);
+
+    const result = await Applicant.aggregate([
+      {
+        $lookup: {
+          from: "projects",
+          localField: "projectId",
+          foreignField: "_id",
+          as: "project",
+        },
+      },
+      { $unwind: "$project" },
+      {
+        $match: {
+          "project.owner": ownerId,
+          status: "accepted",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalSuccessfulMatches: { $sum: 1 },
+        },
+      },
+    ]);
+
     res.status(200).json({
-      message: "Active projects fetched successfully",
-      activeProjects,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const getAchProjects = async (req, res) => {
-  try {
-    const achProjects = await Project.countDocuments({
-      projectStatus: "achieved",
-    });
-    res.status(200).json({
-      message: "Achieved projects fetched successfully",
-      achProjects,
+      totalSuccessfulMatches: result[0]?.totalSuccessfulMatches || 0,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-const getDraftProjects = async (req, res) => {
+const logProfileView = async (req, res) => {
   try {
-    const draftProject = await Project.countDocuments({
-      projectStatus: "draft",
+    const ownerId = req.user.userId;
+    const { applicantId, projectId } = req.body;
+
+    await ProfileView.create({
+      viewer: ownerId,
+      viewedApplicant: applicantId,
+      project: projectId,
+      owner: ownerId,
     });
-    res.status(200).json({
-      message: "Draft projects fetched successfully",
-      draftProject,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const completedProjects = async (req, res) => {
-  try {
-    const completedProjects = await Project.countDocuments({
-      projectStatus: "completed",
-    });
-    res.status(200).json({
-      message: "Completed projects fetched successfully",
-      completedProjects,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const archiveProject = async (req, res) => {
-  const projectId = req.params.projectId;
-  try {
-    const archiveProject = await Project.findById(req.params.projectId);
-    if (!archiveProject) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-    archiveProject.projectStatus = "archived";
-    await archiveProject.save();
-    res
-      .status(200)
-      .json({ message: "Project archived successfully", archiveProject });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const deleteProject = async (req, res) => {
-  const projectId = req.params.projectId;
-  try {
-    const projectToRemove = await Project.findById(projectId);
-    if (!projectToRemove) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-    await Project.findByIdAndDelete(projectId);
-    res.status(200).json({ message: "Project removed successfully" });
+
+    res.status(200).json({ message: "Profile view logged" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// Applicant Controllers
-const getAllApplicants = async (req, res) => {
+const getTotalProfileViews = async (req, res) => {
   try {
+    const ownerId = req.user.userId;
+
+    const totalViews = await ProfileView.countDocuments({
+      owner: ownerId,
+    });
+
+    res.status(200).json({
+      totalProfileViews: totalViews,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+const getRecentApplicants = async (req, res) => {
+  try {
+    const ownerId = req.user.userId;
+
     const applicants = await Applicant.find()
-      .populate("collaboratorId")
-      .populate("projectId");
-    res
-      .status(200)
-      .json({ message: "Applicants fetched successfully", applicants });
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate({
+        path: "projectId",
+        match: { owner: ownerId },
+        select: "projectTitle",
+      })
+      .populate("collaboratorId", "fullName email");
+
+    const filtered = applicants.filter((app) => app.projectId !== null);
+
+    res.json({ recentApplicants: filtered });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
-const getPendingApplicants = async (req, res) => {
-  try {
-    const pendingApplicants = await Applicant.find({ status: "pending" })
-      .populate("collaboratorId")
-      .populate("projectId");
-    res.status(200).json({
-      message: "Pending applicants fetched successfully",
-      pendingApplicants,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const getAcceptedApplicants = async (req, res) => {
-  try {
-    const acceptedApplicants = await Applicant.find({ status: "accepted" })
-      .populate("collaboratorId")
-      .populate("projectId");
-    res.status(200).json({
-      message: "Accepted applicants fetched successfully",
-      acceptedApplicants,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const getRejectedApplicants = async (req, res) => {
-  try {
-    const rejectedApplicants = await Applicant.find({ status: "rejected" })
-      .populate("collaboratorId")
-      .populate("projectId");
-    res.status(200).json({
-      message: "Rejected applicants fetched successfully",
-      rejectedApplicants,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const acceptApplicant = async (req, res) => {
-  try {
-    const applicantId = req.params.applicantId;
-    try {
-      const applicant = await Applicant.findById(applicantId);
-      if (!applicant) {
-        return res.status(404).json({ message: "Applicant not found" });
-      }
-      applicant.status = "accepted";
-      await applicant.save();
-      res
-        .status(200)
-        .json({ message: "Applicant accepted successfully", applicant });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  } catch (error) {}
-};
-const rejectApplicant = async (req, res) => {
-  try {
-    const applicantId = req.params.applicantId;
-    try {
-      const applicant = await Applicant.findById(applicantId);
-      if (!applicant) {
-        return res.status(404).json({ message: "Applicant not found" });
-      }
-      applicant.status = "rejected";
-      await applicant.save();
-      res
-        .status(200)
-        .json({ message: "Applicant rejected successfully", applicant });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  } catch (error) {}
 };
 
 module.exports = {
-  createProject,
-  getTotalProjects,
-  getActiveProjects,
-  deleteProject,
-  completedProjects,
-  getAchProjects,
-  getDraftProjects,
-  archiveProject,
-
-  // Applicant Exports
-  getAllApplicants,
-  getPendingApplicants,
-  getAcceptedApplicants,
-  getRejectedApplicants,
-  acceptApplicant,
-  rejectApplicant,
+  matchScore,
+  getSuccessfulMatches,
+  logProfileView,
+  getTotalProfileViews,
+  getRecentApplicants,
 };

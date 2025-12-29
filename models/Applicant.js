@@ -1,6 +1,6 @@
-import { Schema, model } from "mongoose";
+const { default: mongoose } = require("mongoose");
 
-const ApplicantSchema = new Schema(
+const ApplicantSchema = new mongoose.Schema(
   {
     aboutMe: {
       type: String,
@@ -25,13 +25,13 @@ const ApplicantSchema = new Schema(
       type: String,
     },
     projectId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
       required: true,
       index: true,
     },
     collaboratorId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true,
@@ -53,3 +53,5 @@ const ApplicantSchema = new Schema(
   },
   { timestamps: true }
 );
+
+module.exports = mongoose.model("Applicant", ApplicantSchema);

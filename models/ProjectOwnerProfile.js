@@ -1,8 +1,12 @@
-import { getTime } from "date-fns";
+const { default: mongoose } = require("mongoose");
 
-const ProjectOwnerProfileSchema = new Schema(
+const ProjectOwnerProfileSchema = new mongoose.Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     name: String,
     company: String,
     role: String,
@@ -19,8 +23,8 @@ const ProjectOwnerProfileSchema = new Schema(
   { timestamps: true }
 );
 
-export const ProjectOwnerProfile = model(
+const ProjectOwnerProfile = mongoose.model(
   "ProjectOwnerProfile",
   ProjectOwnerProfileSchema
 );
-// module.exports = { ProjectOwnerProfile };
+module.exports = { ProjectOwnerProfile };

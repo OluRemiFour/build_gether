@@ -1,8 +1,6 @@
 const User = require("../models/User.js");
-const Teacher = require("../models/Teacher");
 const crypto = require("crypto");
 const { transporter } = require("../middleware/sendEmail.js");
-const Student = require("../models/Student.js");
 
 function generateTeacherPassword(name, email) {
   const first = name.split(" ")[0].toLowerCase();

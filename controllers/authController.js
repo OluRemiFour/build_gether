@@ -195,10 +195,10 @@ const resendOtp = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
 
     // 1️⃣ Validate input
-    if (!email || !password || !role) {
+    if (!email || !password) {
       return res
         .status(400)
         .json({ message: "Email, password, and role are required" });
@@ -212,9 +212,9 @@ const login = async (req, res) => {
     }
 
     // 3️⃣ Role check (extra safety)
-    if (user.role !== role) {
-      return res.status(403).json({ message: "Role mismatch" });
-    }
+    // if (user.role !== role) {
+    //   return res.status(403).json({ message: "Role mismatch" });
+    // }
 
     // 4️⃣ Password check
     const isMatch = await user.comparePassword(password);
@@ -230,6 +230,7 @@ const login = async (req, res) => {
     }
 
     // 6️⃣ Generate token
+    // const token = generateToken(user._id, user.role);
     const token = generateToken(user._id, user.role);
 
     return res.status(200).json({

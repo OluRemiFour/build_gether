@@ -1,17 +1,17 @@
 const User = require("../models/User.js");
 
 const getUser = async (req, res) => {
-  const { email, password } = req.body;
+  const userId = req.body.userId;
   try {
-    if (!email || !password) {
+    if (!userId) {
       return res.status(404).json({
         statusCode: "01",
         status: "Failed",
-        message: "Invalid credentials",
+        message: "Invalid userId",
       });
     }
-    const user = await User.find({ email, password });
-    if (user && user.length > 0) {
+    const user = await User.findById(userId);
+    if (user) {
       return res.status(200).json({
         statusCode: "00",
         message: "User found sucessfully!",

@@ -4,7 +4,7 @@ const { getUser } = require("../controllers/userController.js");
 
 const router = express.Router();
 
-router.post("/me", getUser);
+router.post("/me", protect, getUser);
 // router.post(
 //   "/add-student",
 //   protect,

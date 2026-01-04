@@ -1,5 +1,5 @@
 // controllers/userController.js
-const getMe = async (req, res) => {
+const getUser = async (req, res) => {
   try {
     // req.user is already attached by the protect middleware
     if (!req.user) {
@@ -25,5 +25,5 @@ const getMe = async (req, res) => {
 };
 
 module.exports = {
-  getMe,
+  getUser,
 };

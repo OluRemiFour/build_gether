@@ -2,7 +2,7 @@
 const getUser = async (req, res) => {
   try {
     // req.user is already attached by the protect middleware
-    if (!req.user) {
+    if (!req.userId) {
       return res.status(401).json({
         statusCode: "01",
         message: "Not authenticated",
@@ -12,7 +12,7 @@ const getUser = async (req, res) => {
     return res.status(200).json({
       statusCode: "00",
       message: "User retrieved successfully",
-      user: req.user,
+      user: req.userId,
     });
   } catch (error) {
     console.error("Get me error:", error);

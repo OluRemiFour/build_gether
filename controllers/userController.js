@@ -1,3 +1,5 @@
+const User = require("../models/User");
+
 // controllers/userController.js
 const getUser = async (req, res) => {
   try {
@@ -9,10 +11,13 @@ const getUser = async (req, res) => {
       });
     }
 
+    const user = await User.findById(req.userId);
+
     return res.status(200).json({
       statusCode: "00",
       message: "User retrieved successfully",
       user: req.userId,
+      data: user,
     });
   } catch (error) {
     console.error("Get me error:", error);

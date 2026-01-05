@@ -85,7 +85,7 @@ const getTotalProjects = async (req, res) => {
       message: "Projects fetched successfully",
       data: {
         projects,
-        total: projects.length,
+        // total: projects.length,
       },
     });
   } catch (error) {

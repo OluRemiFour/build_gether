@@ -58,8 +58,6 @@ const createProject = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-const Project = require("../models/Project");
-const User = require("../models/User");
 
 const getTotalProjects = async (req, res) => {
   try {
@@ -85,7 +83,7 @@ const getTotalProjects = async (req, res) => {
       message: "Projects fetched successfully",
       data: {
         projects,
-        // total: projects.length,
+        total: projects.length,
       },
     });
   } catch (error) {

@@ -61,12 +61,11 @@ const createProject = async (req, res) => {
 const getTotalProjects = async (req, res) => {
   try {
     const { userId } = req.params;
-    const totalProjects = await Project.countDocuments();
-    const projectList = await Project.find({ owner: userId });
+    const projectList = await Project.findById(userId);
     res.status(200).json({
       message: "Total projects fetched successfully",
-      totalProjects,
       projectList,
+      total: projectList.length,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

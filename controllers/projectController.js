@@ -96,14 +96,11 @@ const createProject = async (req, res) => {
 //   }
 // };
 
-const Project = require("../models/Project");
-const User = require("../models/User"); // Import User model
-
 const getTotalProjects = async (req, res) => {
   try {
     // Get user ID from req.userId (set by your protect middleware)
     const userId = req.userId;
-
+    
     console.log("User ID from token:", userId);
     console.log("User role:", req.userRole);
 
@@ -117,7 +114,7 @@ const getTotalProjects = async (req, res) => {
 
     // Optional: Get user details from database
     const user = await User.findById(userId).select("name email role");
-
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -127,7 +124,7 @@ const getTotalProjects = async (req, res) => {
 
     // Find all projects belonging to this user
     const projects = await Project.find({ userId: userId });
-
+    
     console.log(`Found ${projects.length} projects for user ${userId}`);
 
     res.status(200).json({
@@ -146,10 +143,10 @@ const getTotalProjects = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching projects:", error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
       message: "Failed to fetch projects",
-      error: error.message,
+      error: error.message 
     });
   }
 };

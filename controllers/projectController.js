@@ -1,3 +1,4 @@
+const Applicant = require("../models/Applicant");
 const Project = require("../models/CreateProject");
 const User = require("../models/User");
 
@@ -48,7 +49,7 @@ const createProject = async (req, res) => {
       techStack,
       owner: _id[0],
     });
-    if (applicantId) newProject.applicant = applicantId;
+    if (applicantId) newProject.applicants = applicantId;
     await newProject.save();
     res
       .status(201)

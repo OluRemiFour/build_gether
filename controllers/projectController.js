@@ -59,24 +59,76 @@ const createProject = async (req, res) => {
   }
 };
 
+// const getTotalProjects = async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+
+//     if (!userId) {
+//       return res.status(400).json({
+//         message: "User ID is required",
+//       });
+//     }
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({
+//         message: "User not found",
+//       });
+//     }
+
+//     const projects = await Project.find({ userId });
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Projects fetched successfully",
+//       data: {
+//         projects,
+//         total: projects.length,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error fetching projects:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch projects",
+//       error: error.message,
+//     });
+//   }
+// };
+
+const Project = require("../models/Project");
+const User = require("../models/User"); // Import User model
+
 const getTotalProjects = async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Get user ID from req.userId (set by your protect middleware)
+    const userId = req.userId;
 
+    console.log("User ID from token:", userId);
+    console.log("User role:", req.userRole);
+
+    // Validate user ID
     if (!userId) {
       return res.status(400).json({
-        message: "User ID is required",
+        success: false,
+        message: "User ID not found in token",
       });
     }
 
-    const user = await User.findById(userId);
+    // Optional: Get user details from database
+    const user = await User.findById(userId).select("name email role");
+
     if (!user) {
       return res.status(404).json({
-        message: "User not found",
+        success: false,
+        message: "User not found in database",
       });
     }
 
-    const projects = await Project.find({ userId });
+    // Find all projects belonging to this user
+    const projects = await Project.find({ userId: userId });
+
+    console.log(`Found ${projects.length} projects for user ${userId}`);
 
     res.status(200).json({
       success: true,
@@ -84,6 +136,12 @@ const getTotalProjects = async (req, res) => {
       data: {
         projects,
         total: projects.length,
+        user: {
+          id: userId,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
       },
     });
   } catch (error) {
@@ -95,6 +153,7 @@ const getTotalProjects = async (req, res) => {
     });
   }
 };
+
 const getActiveProjects = async (req, res) => {
   try {
     const { owner } = req.user.userId;

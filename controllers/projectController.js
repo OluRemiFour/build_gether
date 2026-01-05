@@ -58,17 +58,43 @@ const createProject = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+const Project = require("../models/Project");
+const User = require("../models/User");
+
 const getTotalProjects = async (req, res) => {
   try {
     const { userId } = req.params;
-    const projectList = await Project.findById(userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        message: "User ID is required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const projects = await Project.find({ userId });
+
     res.status(200).json({
-      message: "Total projects fetched successfully",
-      projectList,
-      total: projectList.length,
+      success: true,
+      message: "Projects fetched successfully",
+      data: {
+        projects,
+        total: projects.length,
+      },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error fetching projects:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch projects",
+      error: error.message,
+    });
   }
 };
 const getActiveProjects = async (req, res) => {

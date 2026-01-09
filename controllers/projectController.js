@@ -123,7 +123,8 @@ const getTotalProjects = async (req, res) => {
     }
 
     // Find all projects belonging to this user
-    const projects = await Project.find({ userId: userId });
+    // const projects = await Project.find({ userId: userId });
+    const projects = await Project.find({ owner: userId });
     
     console.log(`Found ${projects.length} projects for user ${userId}`);
 

@@ -59,6 +59,47 @@ const createProject = async (req, res) => {
   }
 };
 
+const updateProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const updates = req.body;
+    
+    // Ensure only owner can update
+    // Depending on middleware, req.userId or req.user.id is set
+    const userId = req.userId || req.user.id;
+
+    const project = await Project.findOne({ _id: projectId, owner: userId });
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found or unauthorized" });
+    }
+
+    // Prevent updating sensitive fields if necessary, but generally allow full update
+    // excluding owner and applicants structure directly might be safe
+    const allowedUpdates = [
+        "projectTitle", "projectDescription", "projectStatus", 
+        "rolesNeeded", "techStack", "projectDetails"
+    ];
+
+    Object.keys(updates).forEach((key) => {
+       if (allowedUpdates.includes(key)) {
+           project[key] = updates[key];
+       }
+    });
+
+    await project.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Project updated successfully",
+      project
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // const getTotalProjects = async (req, res) => {
 //   try {
 //     const { userId } = req.params;
@@ -236,13 +277,14 @@ const archiveProject = async (req, res) => {
 };
 const deleteProject = async (req, res) => {
   const projectId = req.params.projectId;
-  const owner = req.user.userId;
+  const owner = req.userId || req.user.userId; // Handle potentially different middleware props
   try {
-    const projectToRemove = await Project.findById({ _id: projectId, owner });
+    const projectToRemove = await Project.findOneAndDelete({ _id: projectId, owner });
+    
     if (!projectToRemove) {
-      return res.status(404).json({ message: "Project not found" });
+      return res.status(404).json({ message: "Project not found or unauthorized" });
     }
-    await Project.findByIdAndDelete(projectId);
+    
     res.status(200).json({ message: "Project removed successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -498,4 +540,5 @@ module.exports = {
   getApplicantById,
   getMyProjects,
   getOwnerDashboardStats,
+  updateProject,
 };

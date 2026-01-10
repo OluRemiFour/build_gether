@@ -7,6 +7,10 @@ const userRoutes = require("./routes/userRoutes");
 const applicantRoutes = require("./routes/applicantRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
+const collaboratorRoutes = require("./routes/collaboratorRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
+const path = require("path");
 
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 
@@ -18,8 +22,15 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
+app.use(cors());
+
+// Serve static files from uploads directory
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.get("/", (req, res) => {
+  res.send("Build_Gether API is running...");
+});
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -27,8 +38,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/applicant", applicantRoutes);
 app.use("/api/project", projectRoutes);
 app.use("/api/service", serviceRoutes);
-app.use("/api/collaborator", require("./routes/collaboratorRoutes"));
-app.use("/api/messages", require("./routes/messageRoutes"));
+app.use("/api/collaborators", collaboratorRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

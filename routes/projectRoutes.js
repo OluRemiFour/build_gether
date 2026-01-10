@@ -18,9 +18,17 @@ const {
   getApplicantById,
   getMyProjects,
   getOwnerDashboardStats,
+  updateProject
 } = require("../controllers/projectController.js");
 const router = express.Router();
 // Project Routes
+
+router.put(
+    "/:projectId",
+    protect,
+    authorize("project_owner"),
+    updateProject
+);
 router.post(
   "/create-project",
   protect,

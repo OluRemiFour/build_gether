@@ -301,18 +301,75 @@ const getProfile = async (req, res) => {
 };
 
 const updateProfile = async (req, res) => {
-  const { ...data } = req.body;
+  const { 
+    // User fields
+    fullName, 
+    // Profile fields
+    bio, location, company, websiteUrl, linkedinUrl, githubUrl, portfolioUrl,
+    skills, availability, experienceLevel, roles
+  } = req.body;
+
   try {
     const user = await User.findById(req.userId).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    Object.keys(data).forEach((key) => {
-      user[key] = data[key];
-    });
+
+    // Update User Common Fields
+    if(fullName) user.fullName = fullName;
     await user.save();
-    res.status(200).json({ message: "Profile updated successfully", user });
+
+    let profile;
+    
+    // Update Specific Profile based on Role
+    if (user.role === "project_owner") {
+      profile = await ProjectOwnerProfile.findOne({ userId: user._id });
+      if (!profile) {
+          // Verify if verifyOtp created it, if not create now
+           profile = await ProjectOwnerProfile.create({ userId: user._id });
+      }
+
+      if (bio !== undefined) profile.bio = bio;
+      if (location !== undefined) profile.location = location;
+      if (company !== undefined) profile.company = company;
+      if (websiteUrl !== undefined) profile.websiteUrl = websiteUrl;
+      if (linkedinUrl !== undefined) profile.linkedinUrl = linkedinUrl;
+      if (githubUrl !== undefined) profile.githubUrl = githubUrl;
+      // Map portfolio to website if needed, or keeping distinct
+      
+      await profile.save();
+
+    } else if (user.role === "collaborator") {
+        profile = await CollaboratorProfile.findOne({ userId: user._id });
+        if (!profile) {
+             profile = await CollaboratorProfile.create({ userId: user._id });
+        }
+
+        if (bio !== undefined) profile.bio = bio;
+        if (location !== undefined) profile.location = location;
+        if (portfolioUrl !== undefined) profile.portfolioUrl = portfolioUrl;
+        if (githubUrl !== undefined) profile.githubUrl = githubUrl;
+        if (linkedinUrl !== undefined) profile.linkedinUrl = linkedinUrl;
+        
+        if (skills !== undefined) profile.skills = skills; 
+        if (availability !== undefined) profile.availability = availability;
+        if (experienceLevel !== undefined) profile.experienceLevel = experienceLevel;
+        // Roles isn't in schema but passed from frontend? 
+        // Logic for roles might need schema update or mapping to skills?
+        
+        await profile.save();
+    }
+
+    // Refetch full object to return
+    // const fullUser = { ...user.toObject(), ...profile.toObject() };
+    res.status(200).json({ 
+        message: "Profile updated successfully", 
+        user: user,
+        profile: profile 
+    });
+
   } catch (error) {
+    console.error("Update Profile Error", error);
     res.status(500).json({ message: error.message });
   }
 };

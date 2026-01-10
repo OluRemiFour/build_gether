@@ -1,24 +1,30 @@
 const Project = require("../models/CreateProject");
 const { CollaboratorProfile } = require("../models/CollaboratorProfile");
+const { calculateMatchScore } = require("../utils/matchingEngine");
 
 const getMatches = async (req, res) => {
   try {
     const userId = req.userId;
-    // Get user profile to find skills/roles
-    // For now, we'll return all active projects as "matches" 
-    // In a real recommendation system, this would be more complex
-    
-    // Optional: Filter by roles if profile exists and has roles
-    // const profile = await CollaboratorProfile.findOne({ userId });
+    const profile = await CollaboratorProfile.findOne({ userId });
     
     const projects = await Project.find({ projectStatus: "active" })
       .populate("owner", "fullName avatar")
-      .select("-applicants"); 
+      .select("-applicants");
 
-    // Simple matching logic could go here, for now return all
+    const matchedProjects = projects.map(project => {
+      const { score, reasons } = calculateMatchScore(profile, project);
+      return {
+        ...project.toObject(),
+        matchScore: score,
+        matchReasons: reasons
+      };
+    })
+    .filter(p => p.matchScore > 10) 
+    .sort((a, b) => b.matchScore - a.matchScore);
+
     res.status(200).json({
       success: true,
-      matches: projects
+      matches: matchedProjects
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -27,23 +33,40 @@ const getMatches = async (req, res) => {
 
 const getDashboardStats = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.userId;
+        const profile = await CollaboratorProfile.findOne({ userId });
+        
+        const allProjects = await Project.find({ projectStatus: "active" });
         const applications = await Project.find({ "applicants.user": userId });
         
         const projectsJoined = applications.filter(p => 
             p.applicants.some(a => a.user.toString() === userId && a.status === 'accepted')
         ).length;
 
-        // Basic stats
+        // Calculate real match stats
+        let totalScore = 0;
+        let matchCount = 0;
+
+        allProjects.forEach(project => {
+            const { score } = calculateMatchScore(profile, project);
+            if (score > 10) {
+                totalScore += score;
+                matchCount++;
+            }
+        });
+
+        const avgScore = matchCount > 0 ? Math.round(totalScore / matchCount) : 0;
+
         const stats = {
-            matchesReceived: 3, // Still mocked as match algorithm is complex
+            matchesReceived: matchCount,
             projectsJoined: projectsJoined,
-            completedProjects: 0, // Mock
-            matchScore: 92 // Mock
+            completedProjects: applications.filter(p => p.projectStatus === 'completed').length,
+            matchScore: avgScore
         };
 
         res.status(200).json({ success: true, stats });
     } catch (error) {
+        console.error("Stats Error:", error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -51,17 +74,17 @@ const getDashboardStats = async (req, res) => {
 const getApplications = async (req, res) => {
   try {
     const userId = req.userId;
+    const profile = await CollaboratorProfile.findOne({ userId });
 
-    // Find projects where the applicants array has an entry with user: userId
     const projects = await Project.find({
       "applicants.user": userId
     })
-    .populate("owner", "fullName avatar")
-    .select("projectTitle projectStatus applicants rolesNeeded techsStack projectDetails owner");
+    .populate("owner", "fullName avatar");
 
-    // Map projects to extract the specific application status for this user
     const applications = projects.map(project => {
       const application = project.applicants.find(app => app.user.toString() === userId);
+      const { score, reasons } = calculateMatchScore(profile, project);
+      
       return {
         _id: application._id, 
         project: {
@@ -72,12 +95,12 @@ const getApplications = async (req, res) => {
                 name: project.owner.fullName,
                 avatar: project.owner.avatar
             },
-            // defaulting company/timeline as they might not map 1:1 to current UI expectations
             company: "BuildGether", 
         },
         status: application.status || "pending",
         appliedAt: application.appliedAt || project.createdAt,
-        matchScore: 85 // Mock or calculate
+        matchScore: score || 85,
+        matchReasons: reasons
       };
     });
 

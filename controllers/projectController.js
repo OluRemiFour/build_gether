@@ -1,6 +1,8 @@
 const Applicant = require("../models/Applicant");
 const Project = require("../models/CreateProject");
 const User = require("../models/User");
+const { CollaboratorProfile } = require("../models/CollaboratorProfile");
+const { calculateMatchScore } = require("../utils/matchingEngine");
 
 const createProject = async (req, res) => {
   try {
@@ -359,14 +361,25 @@ const inviteCollaborator = async (req, res) => {
 
 const getAllProjects = async (req, res) => {
   try {
-    // Return all active projects for discovery, populated with owner info
+    const userId = req.userId;
+    const profile = await CollaboratorProfile.findOne({ userId });
+
     const projects = await Project.find({ projectStatus: "active" })
       .populate("owner", "fullName avatar")
       .sort({ createdAt: -1 });
 
+    const projectsWithScores = projects.map(p => {
+        const { score, reasons } = calculateMatchScore(profile, p);
+        return {
+            ...p.toObject(),
+            matchScore: score,
+            matchReasons: reasons
+        };
+    });
+
     res.status(200).json({
       success: true,
-      data: projects
+      data: projectsWithScores
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -376,34 +389,36 @@ const getAllProjects = async (req, res) => {
 const getAllApplicants = async (req, res) => {
   try {
     const userId = req.userId;
-    // Find projects owned by user
     const projects = await Project.find({ owner: userId }).populate("applicants.user", "fullName avatar email");
 
     const applicants = [];
-    projects.forEach(project => {
+    for (const project of projects) {
         if(project.applicants && project.applicants.length > 0) {
-            project.applicants.forEach(app => {
+            for (const app of project.applicants) {
                 if(app.user) {
+                    const collabProfile = await CollaboratorProfile.findOne({ userId: app.user._id });
+                    const { score, reasons } = calculateMatchScore(collabProfile, project);
+                    
                     applicants.push({
                         id: app._id,
                         name: app.user.fullName,
                         avatar: app.user.avatar,
                         email: app.user.email,
                         role: app.roleAppliedFor || "collaborator",
-                        matchScore: 85, // Mock score
+                        matchScore: score,
+                        matchReasons: reasons,
                         project: project.projectTitle,
                         projectId: project._id,
                         appliedAt: app.appliedAt,
                         status: app.status,
-                        // Add other fields if available in user model or app model
-                        bio: "Developer", 
-                        skills: ["React", "Node"], 
-                        experience: "Intermediate"
+                        bio: collabProfile?.bio || "No bio provided", 
+                        skills: collabProfile?.skills?.map(s => s.name) || [], 
+                        experience: collabProfile?.experienceLevel || "Intermediate"
                     });
                 }
-            });
+            }
         }
-    });
+    }
 
     res.status(200).json({
         success: true,
@@ -465,6 +480,9 @@ const getApplicantById = async (req, res) => {
     const applicant = project.applicants.id(applicationId);
     if(!applicant) return res.status(404).json({ message: "Applicant subdocument not found" });
 
+    const collabProfile = await CollaboratorProfile.findOne({ userId: applicant.user?._id });
+    const { score, reasons } = calculateMatchScore(collabProfile, project);
+
     // Map to frontend interface
     const response = {
          id: applicant._id,
@@ -472,15 +490,16 @@ const getApplicantById = async (req, res) => {
          avatar: applicant.user?.avatar || "",
          email: applicant.user?.email || "",
          role: applicant.roleAppliedFor || "collaborator",
-         matchScore: 85, // Mock
+         matchScore: score,
+         matchReasons: reasons,
          project: project.projectTitle,
          projectId: project._id,
          appliedAt: applicant.appliedAt,
          status: applicant.status,
-         bio: "Passionate developer ready to contribute.", // Mock/Default since not in user model yet?
-         skills: ["React", "Node.js"], // Mock
-         experience: "Intermediate", // Mock
-         matchReasons: [] // Mock
+         bio: collabProfile?.bio || "No bio provided",
+         skills: collabProfile?.skills?.map(s => s.name) || [],
+         experience: collabProfile?.experienceLevel || "Intermediate",
+         matchReasons: [] 
     };
 
     res.status(200).json({ success: true, applicant: response });

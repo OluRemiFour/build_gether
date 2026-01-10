@@ -17,8 +17,14 @@ const CollaboratorProfileSchema = new mongoose.Schema(
         level: {
           type: String,
           enum: ["beginner", "intermediate", "advanced", "expert"],
+          default: "intermediate"
         },
       },
+    ],
+    roles: [
+      {
+        type: String,
+      }
     ],
     availability: {
       type: String,

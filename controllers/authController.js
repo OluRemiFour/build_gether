@@ -288,20 +288,22 @@ const getProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    let profile;
-
     switch (user.role) {
       case "collaborator":
-        profile = await Collaborator.findOne({ user: user._id })
-          .populate("skills")
-          .populate("projects");
+        profile = await CollaboratorProfile.findOne({ userId: user._id });
         break;
 
       case "project_owner":
-        profile = await ProjectOwner.findOne({ user: user._id });
+        profile = await ProjectOwnerProfile.findOne({ userId: user._id });
         break;
     }
-    res.status(200).json({ user, profile });
+
+    const userWithProfile = user.toObject();
+    if (profile) {
+      Object.assign(userWithProfile, profile.toObject());
+    }
+
+    res.status(200).json({ user: userWithProfile });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -361,8 +363,10 @@ const updateProfile = async (req, res) => {
         if (skills !== undefined) profile.skills = skills; 
         if (availability !== undefined) profile.availability = availability;
         if (experienceLevel !== undefined) profile.experienceLevel = experienceLevel;
-        // Roles isn't in schema but passed from frontend? 
-        // Logic for roles might need schema update or mapping to skills?
+        if (roles !== undefined) {
+           // Ensure it maps to the schema structure if needed, or if it's just array of strings
+           profile.roles = roles.map(r => typeof r === 'string' ? { type: r } : r);
+        }
         
         await profile.save();
     }
@@ -381,6 +385,50 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const getProfileStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let profile;
+    const missingFields = [];
+
+    if (!user.fullName) missingFields.push("Full Name");
+
+    if (user.role === "collaborator") {
+      profile = await CollaboratorProfile.findOne({ userId: user._id });
+      if (!profile) {
+        missingFields.push("Bio", "Location", "At least one Skill", "At least one Role", "Availability");
+      } else {
+        if (!profile.bio) missingFields.push("Bio");
+        if (!profile.location) missingFields.push("Location");
+        if (!profile.skills || profile.skills.length === 0) missingFields.push("At least one Skill");
+        if (!profile.roles || profile.roles.length === 0) missingFields.push("At least one Role");
+        if (!profile.availability) missingFields.push("Availability");
+      }
+    } else if (user.role === "project_owner") {
+      profile = await ProjectOwnerProfile.findOne({ userId: user._id });
+      if (!profile) {
+        missingFields.push("Bio", "Location", "Company Name");
+      } else {
+        if (!profile.bio) missingFields.push("Bio");
+        if (!profile.location) missingFields.push("Location");
+        if (!profile.company) missingFields.push("Company Name");
+      }
+    }
+
+    return res.status(200).json({
+      isComplete: missingFields.length === 0,
+      missingFields,
+      userType: user.role
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   register,
   verifyOtp,
@@ -388,4 +436,5 @@ module.exports = {
   login,
   getProfile,
   updateProfile,
+  getProfileStatus,
 };

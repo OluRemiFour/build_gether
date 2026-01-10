@@ -130,8 +130,8 @@ const verifyOtp = async (req, res) => {
         bio: "",
         location: "",
         skills: [],
-        availability: [],
-        experienceLevel: [],
+        availability: "flexible", // Default to valid string enum
+        experienceLevel: "beginner", // Default to valid string enum
         portfolioUrl: "",
         githubUrl: "",
         linkedinUrl: "",
@@ -146,6 +146,13 @@ const verifyOtp = async (req, res) => {
     });
   } catch (err) {
     console.error("VERIFY OTP ERROR:", err);
+    if (err.code === 11000) {
+        return res.status(400).json({ message: "User already exists or verified." });
+    }
+    if (err.name === 'ValidationError') {
+        const messages = Object.values(err.errors).map(val => val.message);
+        return res.status(400).json({ message: messages.join(', ') });
+    }
     return res.status(500).json({ message: "Server error" });
   }
 };

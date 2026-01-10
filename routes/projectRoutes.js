@@ -12,6 +12,12 @@ const {
   archiveProject,
   applyToProject,
   inviteCollaborator,
+  getAllProjects,
+  getAllApplicants,
+  getProjectById,
+  getApplicantById,
+  getMyProjects,
+  getOwnerDashboardStats,
 } = require("../controllers/projectController.js");
 const router = express.Router();
 // Project Routes
@@ -52,7 +58,7 @@ router.get(
   getDraftProjects
 );
 router.delete(
-  "/:projectId-delete",
+  "/:projectId",
   protect,
   authorize("project_owner"),
   deleteProject
@@ -74,6 +80,47 @@ router.post(
   protect,
   authorize("project_owner"),
   inviteCollaborator
+);
+
+// New Routes for Discovery and Applicants
+router.get(
+    "/explore",
+    // Public or protected? Let's make it protected for now as generic user
+    protect, 
+    getAllProjects
+);
+
+router.get(
+    "/applicants",
+    protect,
+    authorize("project_owner"),
+    getAllApplicants
+);
+
+router.get(
+    "/details/:projectId",
+    protect,
+    getProjectById
+);
+
+router.get(
+    "/application/:applicationId",
+    protect, 
+    authorize("project_owner"),
+    getApplicantById
+);
+
+router.get(
+    "/my-projects",
+    protect,
+    getMyProjects
+);
+
+router.get(
+    "/owner-stats",
+    protect,
+    authorize("project_owner"),
+    getOwnerDashboardStats
 );
 
 module.exports = router;

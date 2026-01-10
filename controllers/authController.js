@@ -156,16 +156,45 @@ const resendOtp = async (req, res) => {
 
     if (!email) return res.status(400).json({ message: "Email is required" });
 
+    // Generate new OTP
+    const newOtp = Math.floor(100000 + Math.random() * 900000);
+    const otpExpires = Date.now() + 15 * 60 * 1000;
+
+    // Check PendingUser first (Registration flow)
+    const pendingUser = await PendingUser.findOne({ email });
+    
+    if (pendingUser) {
+      pendingUser.otp = newOtp;
+      pendingUser.otpExpires = otpExpires;
+      await pendingUser.save();
+
+      await transporter.sendMail({
+        from: `"Build Gether" <${process.env.SENDER_EMAIL}>`,
+        to: email,
+        subject: "Your New Verification Code",
+        html: `
+          <h2>Hello ${pendingUser.fullName},</h2>
+          <p>Your new One-Time Password (OTP) for email verification is:</p>
+          <h1 style="letter-spacing: 5px; font-size: 32px;">${newOtp}</h1>
+          <p>This OTP expires in <strong>15 minutes</strong>.</p>
+          <br/>
+          <p>Regards,<br/>Build Gether Support Team</p>
+        `,
+      });
+      return res.json({ message: "A new OTP has been sent to your email" });
+    }
+
+    // Check existing User (maybe implementation for login otp later?)
     const user = await User.findOne({ email });
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (user.isVerified)
+    if (user.isVerified) {
+       // Ideally we shouldn't resend verify OTP to verified user, usually.
+       // But if this is used for password reset or login, we might want to allow it.
+       // For now, keeping original logic: error if verified.
       return res.status(400).json({ message: "Account already verified" });
-
-    // Generate new OTP
-    const newOtp = Math.floor(100000 + Math.random() * 900000);
-    const otpExpires = Date.now() + 15 * 60 * 1000;
+    }
 
     user.otp = newOtp;
     user.otpExpires = otpExpires;

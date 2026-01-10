@@ -124,7 +124,7 @@ const getTotalProjects = async (req, res) => {
 
     // Find all projects belonging to this user
     // const projects = await Project.find({ userId: userId });
-    const projects = await Project.find({ owner: userId });
+    const projects = await Project.find({ owner: userId }).populate("applicants.user", "fullName avatar");
     
     console.log(`Found ${projects.length} projects for user ${userId}`);
 
@@ -315,6 +315,172 @@ const inviteCollaborator = async (req, res) => {
   }
 };
 
+const getAllProjects = async (req, res) => {
+  try {
+    // Return all active projects for discovery, populated with owner info
+    const projects = await Project.find({ projectStatus: "active" })
+      .populate("owner", "fullName avatar")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: projects
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getAllApplicants = async (req, res) => {
+  try {
+    const userId = req.userId;
+    // Find projects owned by user
+    const projects = await Project.find({ owner: userId }).populate("applicants.user", "fullName avatar email");
+
+    const applicants = [];
+    projects.forEach(project => {
+        if(project.applicants && project.applicants.length > 0) {
+            project.applicants.forEach(app => {
+                if(app.user) {
+                    applicants.push({
+                        id: app._id,
+                        name: app.user.fullName,
+                        avatar: app.user.avatar,
+                        email: app.user.email,
+                        role: app.roleAppliedFor || "collaborator",
+                        matchScore: 85, // Mock score
+                        project: project.projectTitle,
+                        projectId: project._id,
+                        appliedAt: app.appliedAt,
+                        status: app.status,
+                        // Add other fields if available in user model or app model
+                        bio: "Developer", 
+                        skills: ["React", "Node"], 
+                        experience: "Intermediate"
+                    });
+                }
+            });
+        }
+    });
+
+    res.status(200).json({
+        success: true,
+        applicants
+    });
+  } catch (error) {
+     res.status(500).json({ message: error.message });
+  }
+};
+
+const getProjectById = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.projectId).populate("owner", "fullName avatar");
+    if(!project) return res.status(404).json({message: "Project not found"});
+    res.status(200).json({ success: true, project });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getMyProjects = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const projects = await Project.find({ owner: userId }).sort({ createdAt: -1 });
+
+        // Calculate stats validation might be needed if they are virtuals or aggregated
+        // For now, assuming direct properties or simple mapping
+        const mappedProjects = projects.map(p => ({
+            id: p._id,
+            title: p.projectTitle,
+            description: p.projectDescription,
+            status: p.projectStatus,
+            roles: p.rolesNeeded,
+            applicants: p.applicants?.length || 0,
+            views: p.views || 0, // Assuming views field exists or defaulting
+            createdAt: p.createdAt,
+            techStack: p.techStack
+        }));
+
+        res.status(200).json({
+            success: true,
+            projects: mappedProjects
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const getApplicantById = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+    // Find project containing the applicant subdocument
+    const project = await Project.findOne({ "applicants._id": applicationId })
+        .populate("applicants.user", "fullName avatar email")
+        .populate("owner", "fullName");
+
+    if(!project) return res.status(404).json({ message: "Application not found" });
+
+    const applicant = project.applicants.id(applicationId);
+    if(!applicant) return res.status(404).json({ message: "Applicant subdocument not found" });
+
+    // Map to frontend interface
+    const response = {
+         id: applicant._id,
+         name: applicant.user?.fullName || "Unknown",
+         avatar: applicant.user?.avatar || "",
+         email: applicant.user?.email || "",
+         role: applicant.roleAppliedFor || "collaborator",
+         matchScore: 85, // Mock
+         project: project.projectTitle,
+         projectId: project._id,
+         appliedAt: applicant.appliedAt,
+         status: applicant.status,
+         bio: "Passionate developer ready to contribute.", // Mock/Default since not in user model yet?
+         skills: ["React", "Node.js"], // Mock
+         experience: "Intermediate", // Mock
+         matchReasons: [] // Mock
+    };
+
+    res.status(200).json({ success: true, applicant: response });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getOwnerDashboardStats = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const projects = await Project.find({ owner: userId });
+        
+        let totalApplicants = 0;
+        let activeProjects = 0;
+        let successfulMatches = 0;
+        let totalViews = 0;
+
+        projects.forEach(p => {
+            if(p.projectStatus === 'active') activeProjects++;
+            if(p.applicants) {
+                totalApplicants += p.applicants.length;
+                successfulMatches += p.applicants.filter(a => a.status === 'accepted').length;
+            }
+            totalViews += (p.views || 0);
+        });
+
+        res.status(200).json({
+            success: true,
+            stats: {
+                activeProjects,
+                totalApplicants,
+                successfulMatches,
+                totalViews
+            }
+        });
+    } catch (error) {
+         res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
   createProject,
   getTotalProjects,
@@ -326,4 +492,10 @@ module.exports = {
   archiveProject,
   applyToProject,
   inviteCollaborator,
+  getAllProjects,
+  getAllApplicants,
+  getProjectById,
+  getApplicantById,
+  getMyProjects,
+  getOwnerDashboardStats,
 };

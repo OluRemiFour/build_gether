@@ -18,7 +18,7 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
 // Routes
@@ -27,6 +27,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/applicant", applicantRoutes);
 app.use("/api/project", projectRoutes);
 app.use("/api/service", serviceRoutes);
+app.use("/api/collaborator", require("./routes/collaboratorRoutes"));
+app.use("/api/messages", require("./routes/messageRoutes"));
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -281,6 +281,24 @@ const archiveProject = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+const unarchiveProject = async (req, res) => {
+  const owner = req.userId || req.user?.userId;
+  const projectId = req.params.projectId;
+  try {
+    const project = await Project.findOne({ _id: projectId, owner });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found or unauthorized" });
+    }
+    project.projectStatus = "active";
+    await project.save();
+    res
+      .status(200)
+      .json({ message: "Project unarchived successfully", project });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 const deleteProject = async (req, res) => {
   const projectId = req.params.projectId;
   const owner = req.userId || req.user.userId; // Handle potentially different middleware props
@@ -555,6 +573,7 @@ module.exports = {
   getAchProjects,
   getDraftProjects,
   archiveProject,
+  unarchiveProject,
   applyToProject,
   inviteCollaborator,
   getAllProjects,

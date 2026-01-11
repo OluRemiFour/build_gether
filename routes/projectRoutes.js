@@ -10,6 +10,7 @@ const {
   completedProjects,
   deleteProject,
   archiveProject,
+  unarchiveProject,
   applyToProject,
   inviteCollaborator,
   getAllProjects,
@@ -76,6 +77,12 @@ router.put(
   protect,
   authorize("project_owner"),
   archiveProject
+);
+router.put(
+  "/unarchive-projects/:projectId",
+  protect,
+  authorize("project_owner"),
+  unarchiveProject
 );
 router.post(
   "/projects/:projectId/apply",

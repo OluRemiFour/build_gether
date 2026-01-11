@@ -159,26 +159,43 @@ const rejectApplicant = async (req, res) => {
   } catch (error) {}
 };
 const acceptApplicant = async (req, res) => {
-  const { projectId, userId } = req.params;
+  try {
+    const { projectId, applicantId } = req.params;
 
-  const project = await Project.findById(projectId);
+    // 1. Find the applicant record
+    const applicant = await Applicant.findById(applicantId);
+    if (!applicant) {
+      return res.status(404).json({ message: "Applicant not found" });
+    }
 
-  const applicant = project.applicants.find(
-    (a) => a.user.toString() === userId
-  );
+    // 2. Verify it matches the project (optional safety check)
+    if (applicant.projectId.toString() !== projectId) {
+      return res.status(400).json({ message: "Applicant does not belong to this project" });
+    }
 
-  if (!applicant) {
-    return res.status(404).json({ message: "Applicant not found" });
+    // 3. Update applicant status
+    applicant.status = "accepted";
+    await applicant.save();
+
+    // 4. Add to project collaborators
+    const project = await Project.findById(projectId);
+    if (!project) {
+       return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if already a collaborator to avoid duplicates
+    if (!project.collaborators.includes(applicant.collaboratorId)) {
+      project.collaborators.push(applicant.collaboratorId);
+      await project.save();
+    }
+
+    res.status(200).json({ 
+        message: "Applicant accepted and added to team", 
+        applicant 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  applicant.status = "accepted";
-
-  // Add to collaborators
-  project.collaborators.push(userId);
-
-  await project.save();
-
-  res.json({ message: "Applicant accepted" });
 };
 const acceptInvite = async (req, res) => {
   try {

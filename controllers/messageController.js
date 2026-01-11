@@ -115,8 +115,59 @@ const sendMessage = async (req, res) => {
   }
 };
 
+// Delete a conversation
+const deleteConversation = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    // Verify user is a participant
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      participants: req.user.id
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found or not authorized" });
+    }
+
+    // Delete messages first
+    await Message.deleteMany({ conversationId });
+    
+    // Delete conversation
+    await Conversation.findByIdAndDelete(conversationId);
+
+    res.status(200).json({ success: true, message: "Conversation deleted" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Mark conversation as read
+const markConversationAsRead = async (req, res) => {
+    try {
+        // Placeholder for future implementation of per-user read status
+        // For now, we just return success to allow the UI to update optimistically
+        const { conversationId } = req.params;
+        res.status(200).json({ success: true, message: "Marked as read" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// Mark conversation as unread (toggle) or similar
+const markConversationAsUnread = async (req, res) => {
+    try {
+        // Placeholder
+        res.status(200).json({ success: true, message: "Marked as unread" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
 module.exports = {
   getConversations,
   getMessages,
-  sendMessage
+  sendMessage,
+  deleteConversation,
+  markConversationAsRead,
+  markConversationAsUnread
 };

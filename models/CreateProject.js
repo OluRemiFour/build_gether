@@ -54,6 +54,7 @@ const projectSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
       },
+      message: String,
     },
   ],
 

@@ -13,28 +13,31 @@ const getConversations = async (req, res) => {
       .sort({ updatedAt: -1 });
 
     // Format for frontend
-    const formattedConversations = conversations.map(conv => {
+    const formattedConversations = await Promise.all(conversations.map(async (conv) => {
       // Find the "other" participant
       const otherParticipant = conv.participants.find(p => p._id.toString() !== userId);
       
-      // Count unread messages (mock logic for now, or real if we add read status)
-      // For MVP, we'll assume 0 unread since we don't have a complex read-receipt system yet
-      const unreadCount = 0; 
+      // Count unread messages (where userId is NOT in readBy)
+      const unreadCount = await Message.countDocuments({
+        conversationId: conv._id,
+        sender: { $ne: userId },
+        readBy: { $ne: userId }
+      });
 
       return {
         id: conv._id,
         participant: {
-          id: otherParticipant?._id, // Added ID
+          id: otherParticipant?._id,
           name: otherParticipant?.fullName || "Unknown User",
           avatar: otherParticipant?.avatar || "",
-          role: otherParticipant?.role || "Collaborator" // Default role
+          role: otherParticipant?.role || "Collaborator"
         },
         lastMessage: conv.lastMessage,
         timestamp: conv.lastMessageAt,
         unread: unreadCount,
         project: conv.project?.projectTitle
       };
-    });
+    }));
 
     res.status(200).json({ success: true, conversations: formattedConversations });
   } catch (error) {
@@ -46,14 +49,23 @@ const getConversations = async (req, res) => {
 const getMessages = async (req, res) => {
   try {
     const { conversationId } = req.params;
+    const userId = req.user.id;
+
+    // Mark messages as read by adding userId to readBy array if not already present
+    await Message.updateMany(
+        { conversationId, sender: { $ne: userId }, readBy: { $ne: userId } },
+        { $addToSet: { readBy: userId } }
+    );
+
     const messages = await Message.find({ conversationId })
-      .sort({ createdAt: 1 }); // Sort by oldest first
+      .sort({ createdAt: 1 });
 
     const formattedMessages = messages.map(msg => ({
       id: msg._id,
       text: msg.text,
-      sender: msg.sender.toString() === req.user.id ? 'me' : 'them',
-      timestamp: msg.createdAt
+      sender: msg.sender.toString() === userId ? 'me' : 'them',
+      timestamp: msg.createdAt,
+      isRead: msg.readBy.includes(userId)
     }));
 
     res.status(200).json({ success: true, messages: formattedMessages });
@@ -154,10 +166,15 @@ const deleteConversation = async (req, res) => {
 // Mark conversation as read
 const markConversationAsRead = async (req, res) => {
     try {
-        // Placeholder for future implementation of per-user read status
-        // For now, we just return success to allow the UI to update optimistically
         const { conversationId } = req.params;
-        res.status(200).json({ success: true, message: "Marked as read" });
+        const userId = req.user.id;
+
+        await Message.updateMany(
+            { conversationId, sender: { $ne: userId }, readBy: { $ne: userId } },
+            { $addToSet: { readBy: userId } }
+        );
+
+        res.status(200).json({ success: true, message: "Conversation marked as read" });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

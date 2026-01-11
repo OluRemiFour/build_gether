@@ -590,10 +590,10 @@ const getApplicantById = async (req, res) => {
          projectId: project._id,
          appliedAt: applicant.appliedAt,
          status: applicant.status,
+         message: applicant.message || "",
          bio: collabProfile?.bio || "No bio provided",
          skills: collabProfile?.skills?.map(s => s.name) || [],
          experience: collabProfile?.experienceLevel || "Intermediate",
-         matchReasons: [] 
     };
 
     res.status(200).json({ success: true, applicant: response });

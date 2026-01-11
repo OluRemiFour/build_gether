@@ -140,13 +140,7 @@ const getRejectedApplicants = async (req, res) => {
 //     }
 //   } catch (error) {}
 // };
-const rejectApplicant = async (req, res) => {
-  try {
-    const applicantId = req.params.applicantId;
-    try {
-      const applicant = await Applicant.findById(applicantId);
-      if (!applicant) {
-        return res.status(404).json({ message: "Applicant not found" });
+
 const rejectApplicant = async (req, res) => {
   try {
     const { applicantId } = req.params;
@@ -186,9 +180,6 @@ const acceptApplicant = async (req, res) => {
     }
 
     applicant.status = "accepted";
-
-    // Add to collaborators if not already present
-    // applicant.user is an ObjectId, make sure to check properly
     if (!project.collaborators.some(c => c.toString() === applicant.user.toString())) {
       project.collaborators.push(applicant.user);
     }

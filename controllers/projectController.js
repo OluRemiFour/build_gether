@@ -492,11 +492,17 @@ const getProjectById = async (req, res) => {
       );
     }
     
+    // Get applicant status if user has applied
+    const applicantStatus = userId ? project.applicants.find(app => 
+      app.user && app.user.toString() === userId
+    )?.status || null : null;
+    
     const projectData = {
       ...project.toObject(),
       matchScore,
       matchReasons,
-      hasApplied
+      hasApplied,
+      applicantStatus
     };
     
     res.status(200).json({ success: true, project: projectData });

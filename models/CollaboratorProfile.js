@@ -14,6 +14,8 @@ const CollaboratorProfileSchema = new mongoose.Schema(
     skills: [
       {
         name: String,
+        icon: String,
+        category: String,
         level: {
           type: String,
           enum: ["beginner", "intermediate", "advanced", "expert"],
@@ -21,11 +23,7 @@ const CollaboratorProfileSchema = new mongoose.Schema(
         },
       },
     ],
-    roles: [
-      {
-        type: String,
-      }
-    ],
+    roles: [String],
     availability: {
       type: String,
       enum: ["full-time", "part-time", "weekends", "flexible"],

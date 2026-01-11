@@ -141,8 +141,25 @@ const verifyOtp = async (req, res) => {
     // Cleanup pending data
     await PendingUser.deleteOne({ email });
 
+    // Generate token for auto-login after verification
+    const token = generateToken(user._id, user.role);
+
+    // Fetch merged user with profile
+    let profileData = {};
+    if (user.role === "project_owner") {
+      const p = await ProjectOwnerProfile.findOne({ userId: user._id });
+      if (p) profileData = p.toObject();
+    } else if (user.role === "collaborator") {
+      const p = await CollaboratorProfile.findOne({ userId: user._id });
+      if (p) profileData = p.toObject();
+    }
+
+    const userWithProfile = { ...user.toJSON(), ...profileData };
+
     return res.status(200).json({
-      message: "Email verified successfully. You can now log in.",
+      message: "Email verified successfully.",
+      token,
+      user: userWithProfile
     });
   } catch (err) {
     console.error("VERIFY OTP ERROR:", err);
@@ -266,12 +283,23 @@ const login = async (req, res) => {
     }
 
     // 6️⃣ Generate token
-    // const token = generateToken(user._id, user.role);
     const token = generateToken(user._id, user.role);
+
+    // 7️⃣ Fetch profile to merge
+    let profileData = {};
+    if (user.role === "project_owner") {
+      const p = await ProjectOwnerProfile.findOne({ userId: user._id });
+      if (p) profileData = p.toObject();
+    } else if (user.role === "collaborator") {
+      const p = await CollaboratorProfile.findOne({ userId: user._id });
+      if (p) profileData = p.toObject();
+    }
+
+    const userWithProfile = { ...user.toJSON(), ...profileData };
 
     return res.status(200).json({
       message: "Login successful",
-      user: user.toJSON(),
+      user: userWithProfile,
       token,
     });
   } catch (err) {
@@ -364,19 +392,29 @@ const updateProfile = async (req, res) => {
         if (availability !== undefined) profile.availability = availability;
         if (experienceLevel !== undefined) profile.experienceLevel = experienceLevel;
         if (roles !== undefined) {
-           // Ensure it maps to the schema structure if needed, or if it's just array of strings
-           profile.roles = roles.map(r => typeof r === 'string' ? { type: r } : r);
+           // Defensive mapping to ensure we only save strings
+           profile.roles = Array.isArray(roles) 
+             ? roles.map(r => typeof r === 'object' && r !== null && r.type ? r.type : r)
+             : roles;
         }
         
         await profile.save();
     }
 
     // Refetch full object to return
-    // const fullUser = { ...user.toObject(), ...profile.toObject() };
+    const updatedUser = await User.findById(user._id).select("-password");
+    let finalProfile;
+    if (user.role === "project_owner") {
+        finalProfile = await ProjectOwnerProfile.findOne({ userId: user._id });
+    } else {
+        finalProfile = await CollaboratorProfile.findOne({ userId: user._id });
+    }
+
+    const mergedUser = { ...updatedUser.toJSON(), ...(finalProfile ? finalProfile.toObject() : {}) };
+
     res.status(200).json({ 
         message: "Profile updated successfully", 
-        user: user,
-        profile: profile 
+        user: mergedUser 
     });
 
   } catch (error) {

@@ -147,47 +147,53 @@ const rejectApplicant = async (req, res) => {
       const applicant = await Applicant.findById(applicantId);
       if (!applicant) {
         return res.status(404).json({ message: "Applicant not found" });
-      }
-      applicant.status = "rejected";
-      await applicant.save();
-      res
-        .status(200)
-        .json({ message: "Applicant rejected successfully", applicant });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+const rejectApplicant = async (req, res) => {
+  try {
+    const { applicantId } = req.params;
+
+    // Find project containing this applicant subdocument
+    const project = await Project.findOne({ "applicants._id": applicantId });
+    if (!project) {
+      return res.status(404).json({ message: "Application not found" });
     }
-  } catch (error) {}
+
+    const applicant = project.applicants.id(applicantId);
+    if (!applicant) {
+        return res.status(404).json({ message: "Applicant not found" });
+    }
+
+    applicant.status = "rejected";
+    await project.save();
+
+    res.status(200).json({ message: "Applicant rejected", applicant });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
+
 const acceptApplicant = async (req, res) => {
   try {
     const { projectId, applicantId } = req.params;
 
-    // 1. Find the applicant record
-    const applicant = await Applicant.findById(applicantId);
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    const applicant = project.applicants.id(applicantId);
     if (!applicant) {
       return res.status(404).json({ message: "Applicant not found" });
     }
 
-    // 2. Verify it matches the project (optional safety check)
-    if (applicant.projectId.toString() !== projectId) {
-      return res.status(400).json({ message: "Applicant does not belong to this project" });
-    }
-
-    // 3. Update applicant status
     applicant.status = "accepted";
-    await applicant.save();
 
-    // 4. Add to project collaborators
-    const project = await Project.findById(projectId);
-    if (!project) {
-       return res.status(404).json({ message: "Project not found" });
+    // Add to collaborators if not already present
+    // applicant.user is an ObjectId, make sure to check properly
+    if (!project.collaborators.some(c => c.toString() === applicant.user.toString())) {
+      project.collaborators.push(applicant.user);
     }
 
-    // Check if already a collaborator to avoid duplicates
-    if (!project.collaborators.includes(applicant.collaboratorId)) {
-      project.collaborators.push(applicant.collaboratorId);
-      await project.save();
-    }
+    await project.save();
 
     res.status(200).json({ 
         message: "Applicant accepted and added to team", 

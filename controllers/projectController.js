@@ -469,6 +469,10 @@ const getProjectById = async (req, res) => {
     const project = await Project.findById(req.params.projectId).populate("owner", "fullName avatar");
     if(!project) return res.status(404).json({message: "Project not found"});
     
+    // Increment view count
+    project.views = (project.views || 0) + 1;
+    await project.save();
+    
     // Calculate match score if user is a collaborator
     let matchScore = 0;
     let matchReasons = [];

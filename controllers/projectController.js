@@ -12,7 +12,6 @@ const createProject = async (req, res) => {
       rolesNeeded,
       projectDetails,
       techStack,
-      owner,
       applicant,
     } = req.body;
     if (
@@ -22,8 +21,7 @@ const createProject = async (req, res) => {
       !techStack ||
       !projectDetails.experienceLevel ||
       !projectDetails.timeline ||
-      !projectDetails.teamSize ||
-      !owner
+      !projectDetails.teamSize
     ) {
       return res.status(400).json({
         message:
@@ -31,11 +29,17 @@ const createProject = async (req, res) => {
       });
     }
 
-    // Check if owner IDs exist
-    const ownerExists = await User.find({ _id: { $in: req.userId } });
-    const _id = ownerExists.map((o) => o._id.toString());
-    if (_id[0] !== owner) {
-      return res.status(400).json({ message: "Invalid owner ID provided" });
+    // Use the authenticated user's ID from the middleware
+    const ownerId = req.userId;
+    
+    if (!ownerId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Verify the user exists
+    const ownerExists = await User.findById(ownerId);
+    if (!ownerExists) {
+      return res.status(404).json({ message: "User not found" });
     }
 
     const applicantId = await Applicant.findOne({ _id: applicant });
@@ -49,7 +53,7 @@ const createProject = async (req, res) => {
       rolesNeeded,
       projectDetails,
       techStack,
-      owner: _id[0],
+      owner: ownerId,
     });
     if (applicantId) newProject.applicants = applicantId;
     await newProject.save();

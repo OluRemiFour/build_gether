@@ -81,28 +81,27 @@ const getApplications = async (req, res) => {
     })
     .populate("owner", "fullName avatar");
 
-    const applications = projects.map(project => {
-      const application = project.applicants.find(app => app.user.toString() === userId);
-      const { score, reasons } = calculateMatchScore(profile, project);
+    const applications = projects
+      .map(project => {
+        const application = project.applicants.find(app => 
+          app.user && app.user.toString() === userId
+        );
+        
+        // Skip if application not found
+        if (!application) return null;
+        
+        const { score, reasons } = calculateMatchScore(profile, project);
       
       return {
-        _id: application._id, 
-        project: {
-            _id: project._id,
-            title: project.projectTitle,
-            roles: project.rolesNeeded,
-            owner: {
-                name: project.owner.fullName,
-                avatar: project.owner.avatar
-            },
-            company: "BuildGether", 
-        },
+        projectId: project._id,
+        projectTitle: project.projectTitle,
         status: application.status || "pending",
         appliedAt: application.appliedAt || project.createdAt,
-        matchScore: score || 85,
-        matchReasons: reasons
+        matchScore: score || 0,
+        matchReasons: reasons || []
       };
-    });
+    })
+    .filter(app => app !== null); // Remove any null entries
 
     res.status(200).json({
       success: true,

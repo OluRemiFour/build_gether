@@ -472,6 +472,7 @@ const getProjectById = async (req, res) => {
     // Calculate match score if user is a collaborator
     let matchScore = 0;
     let matchReasons = [];
+    let hasApplied = false;
     
     if (userId) {
       const profile = await CollaboratorProfile.findOne({ userId });
@@ -480,12 +481,18 @@ const getProjectById = async (req, res) => {
         matchScore = matchData.score;
         matchReasons = matchData.reasons;
       }
+      
+      // Check if user has already applied
+      hasApplied = project.applicants.some(app => 
+        app.user && app.user.toString() === userId.toString()
+      );
     }
     
     const projectData = {
       ...project.toObject(),
       matchScore,
-      matchReasons
+      matchReasons,
+      hasApplied
     };
     
     res.status(200).json({ success: true, project: projectData });

@@ -19,7 +19,8 @@ const {
   getApplicantById,
   getMyProjects,
   getOwnerDashboardStats,
-  updateProject
+  updateProject,
+  markProjectAsCompleted
 } = require("../controllers/projectController.js");
 const router = express.Router();
 // Project Routes
@@ -71,6 +72,12 @@ router.delete(
   protect,
   authorize("project_owner"),
   deleteProject
+);
+router.patch(
+  "/:projectId/complete",
+  protect,
+  authorize("project_owner"),
+  markProjectAsCompleted
 );
 router.put(
   "/archive-projects/:projectId",

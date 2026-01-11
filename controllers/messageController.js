@@ -1,6 +1,7 @@
 const Message = require("../models/Message");
 const Conversation = require("../models/Conversation");
 const User = require("../models/User");
+const Notification = require("../models/Notification");
 
 // Get all conversations for the current user
 const getConversations = async (req, res) => {
@@ -101,6 +102,15 @@ const sendMessage = async (req, res) => {
       conversationId: conversation._id,
       sender: senderId,
       text
+    });
+
+    // Create notification for recipient
+    await Notification.create({
+        recipient: recipientId,
+        sender: senderId,
+        type: "message",
+        project: projectId || conversation.project || null,
+        text: `New message from ${req.user.fullName || "someone"}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`
     });
 
     res.status(201).json({ 

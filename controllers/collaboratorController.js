@@ -7,6 +7,7 @@ const getMatches = async (req, res) => {
     const userId = req.userId;
     const profile = await CollaboratorProfile.findOne({ userId });
     
+    // Filter out completed, cancelled, etc. Only active projects should be discoverable for matches
     const projects = await Project.find({ projectStatus: "active" })
       .populate("owner", "fullName avatar")
       .select("-applicants");
@@ -93,12 +94,21 @@ const getApplications = async (req, res) => {
         const { score, reasons } = calculateMatchScore(profile, project);
       
       return {
-        projectId: project._id,
-        projectTitle: project.projectTitle,
+        _id: application._id, // Use application subdocument ID as unique ID
+        project: {
+          _id: project._id,
+          title: project.projectTitle,
+          roles: project.rolesNeeded || [],
+          company: project.company || "BuildGether", // Default if missing
+          owner: {
+            name: project.owner?.fullName || "Unknown",
+            avatar: project.owner?.avatar || ""
+          }
+        },
         status: application.status || "pending",
         appliedAt: application.appliedAt || project.createdAt,
         matchScore: score || 0,
-        matchReasons: reasons || []
+        message: application.message || ""
       };
     })
     .filter(app => app !== null); // Remove any null entries

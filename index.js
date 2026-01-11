@@ -10,6 +10,7 @@ const serviceRoutes = require("./routes/serviceRoutes");
 const collaboratorRoutes = require("./routes/collaboratorRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 const path = require("path");
 
 const { errorHandler, notFound } = require("./middleware/errorHandler");
@@ -41,6 +42,7 @@ app.use("/api/service", serviceRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

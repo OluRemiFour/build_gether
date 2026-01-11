@@ -201,7 +201,7 @@ const getTotalProjects = async (req, res) => {
 
 const getActiveProjects = async (req, res) => {
   try {
-    const { owner } = req.user.userId;
+    const owner = req.userId || req.user?.userId || req.user?._id;
     const activeProject = await Project.find({
       projectStatus: "active",
       owner,
@@ -217,7 +217,7 @@ const getActiveProjects = async (req, res) => {
 };
 const getAchProjects = async (req, res) => {
   try {
-    const owner = req.user.userId;
+    const owner = req.userId || req.user?.userId || req.user?._id;
     const achProjects = await Project.find({
       projectStatus: "achieved",
       owner,
@@ -234,7 +234,7 @@ const getAchProjects = async (req, res) => {
 
 const getDraftProjects = async (req, res) => {
   try {
-    const owner = req.user.userId;
+    const owner = req.userId || req.user?.userId || req.user?._id;
     const draftProject = await Project.find({
       projectStatus: "draft",
       owner,
@@ -250,7 +250,7 @@ const getDraftProjects = async (req, res) => {
 };
 const completedProjects = async (req, res) => {
   try {
-    const owner = req.user.userId;
+    const owner = req.userId || req.user?.userId || req.user?._id;
     const completedProjects = await Project.find({
       projectStatus: "completed",
       owner,
@@ -259,6 +259,28 @@ const completedProjects = async (req, res) => {
       message: "Completed projects fetched successfully",
       completedProjects,
       total: completedProjects.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+const markProjectAsCompleted = async (req, res) => {
+  try {
+    const userId = req.userId || req.user?._id;
+    const { projectId } = req.params;
+
+    const project = await Project.findOne({ _id: projectId, owner: userId });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found or unauthorized" });
+    }
+
+    project.projectStatus = "completed";
+    await project.save();
+
+    res.status(200).json({ 
+        success: true,
+        message: "Project marked as completed", 
+        project 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -633,4 +655,5 @@ module.exports = {
   getMyProjects,
   getOwnerDashboardStats,
   updateProject,
+  markProjectAsCompleted,
 };

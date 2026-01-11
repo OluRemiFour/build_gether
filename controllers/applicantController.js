@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Applicant = require("../models/Applicant");
 const Project = require("../models/CreateProject");
+const Notification = require("../models/Notification");
 
 const getAllApplicants = async (req, res) => {
   try {
@@ -185,6 +186,15 @@ const acceptApplicant = async (req, res) => {
     }
 
     await project.save();
+
+    // Create notification for applicant
+    await Notification.create({
+        recipient: applicant.user,
+        sender: req.userId || req.user?._id,
+        type: "acceptance",
+        project: projectId,
+        text: `Congratulations! Your application for "${project.projectTitle}" has been accepted.`
+    });
 
     res.status(200).json({ 
         message: "Applicant accepted and added to team", 

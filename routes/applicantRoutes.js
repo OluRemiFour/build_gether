@@ -45,16 +45,19 @@ router.put(
 );
 router.patch(
   "/projects/:projectId/applicants/:applicantId/accept",
+  protect,
   authorize("project_owner"),
   acceptApplicant
 );
 router.patch(
   "/projects/:projectId/invite/accept",
+  protect,
   authorize("collaborator"),
   acceptInvite
 );
 router.patch(
   "/projects/:projectId/invite/reject",
+  protect,
   authorize("collaborator"),
   rejectInvite
 );

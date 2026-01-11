@@ -6,6 +6,7 @@ const {
   register,
   verifyOtp,
   resendOtp,
+  getProfileStatus,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 

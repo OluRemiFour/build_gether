@@ -8,7 +8,9 @@ const calculateMatchScore = (profile, project) => {
   // Check roles (mapped to rolesNeeded in project)
   if (project.rolesNeeded && project.rolesNeeded.length > 0) {
     totalCriteria += project.rolesNeeded.length;
-    const userRoles = profile.roles ? profile.roles.map(r => r.type.toLowerCase()) : [];
+    const userRoles = profile.roles ? profile.roles.map(r => 
+      typeof r === 'string' ? r.toLowerCase() : (r.type || '').toLowerCase()
+    ) : [];
     const matchedRoles = project.rolesNeeded.filter(role => 
       userRoles.includes(role.toLowerCase())
     );
@@ -22,7 +24,9 @@ const calculateMatchScore = (profile, project) => {
   // Check tech stack
   if (project.techStack && project.techStack.length > 0) {
     totalCriteria += project.techStack.length;
-    const userSkills = profile.skills ? profile.skills.map(s => s.name.toLowerCase()) : [];
+    const userSkills = profile.skills ? profile.skills.map(s => 
+      typeof s === 'string' ? s.toLowerCase() : (s.name || '').toLowerCase()
+    ) : [];
     const matchedSkills = project.techStack.filter(skill => 
       userSkills.includes(skill.toLowerCase())
     );

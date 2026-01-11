@@ -315,32 +315,44 @@ const deleteProject = async (req, res) => {
   }
 };
 const applyToProject = async (req, res) => {
-  const { projectId } = req.params;
-  const userId = req.user_id;
-  const { roleAppliedFor } = req.body;
+  try {
+    const { projectId } = req.params;
+    const userId = req.userId; // From protect middleware
+    const { roleAppliedFor, message } = req.body;
 
-  const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId);
 
-  if (!project) {
-    return res.status(404).json({ message: "Project not found" });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if already applied
+    const alreadyApplied = project.applicants.some(
+      (a) => a.user && a.user.toString() === userId.toString()
+    );
+
+    if (alreadyApplied) {
+      return res.status(400).json({ message: "You have already applied to this project" });
+    }
+
+    // Add application
+    project.applicants.push({
+      user: userId,
+      roleAppliedFor: roleAppliedFor || "collaborator",
+      message: message || "",
+      status: "pending",
+      appliedAt: new Date()
+    });
+
+    await project.save();
+
+    res.status(200).json({ 
+      success: true,
+      message: "Application submitted successfully" 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  const alreadyApplied = project.applicants.some(
-    (a) => a.user.toString() === userId.toString()
-  );
-
-  if (alreadyApplied) {
-    return res.status(400).json({ message: "Already applied" });
-  }
-
-  project.applicants.push({
-    user: userId,
-    roleAppliedFor,
-  });
-
-  await project.save();
-
-  res.status(200).json({ message: "Application submitted" });
 };
 const inviteCollaborator = async (req, res) => {
   try {
@@ -453,9 +465,30 @@ const getAllApplicants = async (req, res) => {
 
 const getProjectById = async (req, res) => {
   try {
+    const userId = req.userId;
     const project = await Project.findById(req.params.projectId).populate("owner", "fullName avatar");
     if(!project) return res.status(404).json({message: "Project not found"});
-    res.status(200).json({ success: true, project });
+    
+    // Calculate match score if user is a collaborator
+    let matchScore = 0;
+    let matchReasons = [];
+    
+    if (userId) {
+      const profile = await CollaboratorProfile.findOne({ userId });
+      if (profile) {
+        const matchData = calculateMatchScore(profile, project);
+        matchScore = matchData.score;
+        matchReasons = matchData.reasons;
+      }
+    }
+    
+    const projectData = {
+      ...project.toObject(),
+      matchScore,
+      matchReasons
+    };
+    
+    res.status(200).json({ success: true, project: projectData });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

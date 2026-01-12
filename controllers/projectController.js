@@ -275,6 +275,7 @@ const markProjectAsCompleted = async (req, res) => {
     }
 
     project.projectStatus = "completed";
+    project.lifecycleStage = "completed";
     await project.save();
 
     res.status(200).json({ 
@@ -490,7 +491,9 @@ const getAllApplicants = async (req, res) => {
 const getProjectById = async (req, res) => {
   try {
     const userId = req.userId;
-    const project = await Project.findById(req.params.projectId).populate("owner", "fullName avatar");
+    const project = await Project.findById(req.params.projectId)
+      .populate("owner", "fullName avatar")
+      .populate("team.user", "fullName avatar");
     if(!project) return res.status(404).json({message: "Project not found"});
     
     // Increment view count

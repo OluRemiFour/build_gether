@@ -282,10 +282,14 @@ const markProjectAsCompleted = async (req, res) => {
     project.lifecycleStage = "completed";
     await project.save();
 
+    const populatedProject = await Project.findById(project._id)
+        .populate('owner', 'fullName avatar')
+        .populate('team.user', 'fullName avatar');
+
     res.status(200).json({ 
         success: true,
         message: "Project marked as completed", 
-        project 
+        project: populatedProject
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -674,10 +678,14 @@ const completeTeamSelection = async (req, res) => {
 
     await project.save();
 
+    const populatedProject = await Project.findById(project._id)
+        .populate('owner', 'fullName avatar')
+        .populate('team.user', 'fullName avatar');
+
     res.status(200).json({ 
         success: true,
         message: "Team selection completed. Project is now ongoing.", 
-        project 
+        project: populatedProject 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

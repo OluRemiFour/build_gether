@@ -274,6 +274,10 @@ const markProjectAsCompleted = async (req, res) => {
       return res.status(404).json({ message: "Project not found or unauthorized" });
     }
 
+    if (project.lifecycleStage !== 'ongoing' && project.lifecycleStage !== 'review') {
+      return res.status(400).json({ message: "Project must be in 'ongoing' or 'review' stage to be marked as completed" });
+    }
+
     project.projectStatus = "completed";
     project.lifecycleStage = "completed";
     await project.save();

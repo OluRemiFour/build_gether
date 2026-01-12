@@ -116,6 +116,7 @@ const getApplications = async (req, res) => {
           }
         },
         status: application.status || "pending",
+        role: application.roleAppliedFor || "collaborator",
         appliedAt: application.appliedAt || project.createdAt,
         matchScore: score || 0,
         message: application.message || ""

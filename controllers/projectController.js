@@ -426,10 +426,12 @@ const getAllProjects = async (req, res) => {
 
     const projectsWithScores = projects.map(p => {
         const { score, reasons } = calculateMatchScore(profile, p);
+        const hasApplied = p.applicants.some(a => a.user && a.user.toString() === userId?.toString());
         return {
             ...p.toObject(),
             matchScore: score,
-            matchReasons: reasons
+            matchReasons: reasons,
+            hasApplied
         };
     });
 
@@ -549,7 +551,8 @@ const getMyProjects = async (req, res) => {
             applicants: p.applicants?.length || 0,
             views: p.views || 0, // Assuming views field exists or defaulting
             createdAt: p.createdAt,
-            techStack: p.techStack
+            techStack: p.techStack,
+            lifecycleStage: p.lifecycleStage || 'team-search'
         }));
 
         res.status(200).json({
@@ -636,6 +639,44 @@ const getOwnerDashboardStats = async (req, res) => {
     }
 };
 
+const completeTeamSelection = async (req, res) => {
+  try {
+    const userId = req.userId || req.user?._id;
+    const { projectId } = req.params;
+
+    const project = await Project.findOne({ _id: projectId, owner: userId });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found or unauthorized" });
+    }
+
+    // Mark as ongoing and transition lifecycle
+    project.lifecycleStage = "ongoing";
+    
+    // Move accepted applicants to team if not already there
+    const acceptedApplicants = project.applicants.filter(a => a.status === 'accepted');
+    acceptedApplicants.forEach(app => {
+        const alreadyInTeam = project.team.some(tm => tm.user.toString() === app.user.toString());
+        if (!alreadyInTeam) {
+            project.team.push({
+                user: app.user,
+                role: app.roleAppliedFor,
+                joinedAt: app.appliedAt
+            });
+        }
+    });
+
+    await project.save();
+
+    res.status(200).json({ 
+        success: true,
+        message: "Team selection completed. Project is now ongoing.", 
+        project 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createProject,
   getTotalProjects,
@@ -656,4 +697,5 @@ module.exports = {
   getOwnerDashboardStats,
   updateProject,
   markProjectAsCompleted,
+  completeTeamSelection,
 };

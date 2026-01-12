@@ -38,6 +38,24 @@ const projectSchema = new mongoose.Schema({
     enum: ["all", "active", "completed", "on-hold", "cancelled", "draft", 'archived'],
     default: "active",
   },
+  lifecycleStage: {
+    type: String,
+    enum: ["initiation", "team-search", "ongoing", "review", "completed"],
+    default: "team-search",
+  },
+  team: [
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      role: String,
+      joinedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }
+  ],
   applicants: [
     {
       user: {

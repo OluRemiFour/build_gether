@@ -11,6 +11,7 @@ const collaboratorRoutes = require("./routes/collaboratorRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const taskRoutes = require("./routes/taskRoutes");
 const path = require("path");
 
 const { errorHandler, notFound } = require("./middleware/errorHandler");
@@ -43,6 +44,7 @@ app.use("/api/collaborators", collaboratorRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/tasks", taskRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

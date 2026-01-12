@@ -1,4 +1,5 @@
 const Project = require("../models/CreateProject");
+const mongoose = require("mongoose");
 const { CollaboratorProfile } = require("../models/CollaboratorProfile");
 const { calculateMatchScore } = require("../utils/matchingEngine");
 
@@ -37,11 +38,15 @@ const getDashboardStats = async (req, res) => {
         const userId = req.userId;
         const profile = await CollaboratorProfile.findOne({ userId });
         
-        const allProjects = await Project.find({ projectStatus: "active" });
+        const allProjects = await Project.find({ projectStatus: { $ne: "draft" } });
         const applications = await Project.find({ "applicants.user": userId });
         
+        console.log(`Stats for user ${userId}: Found ${applications.length} applications`);
+
         const projectsJoined = applications.filter(p => 
-            p.applicants.some(a => a.user.toString() === userId && a.status === 'accepted')
+            (p.applicants.some(a => a.user && a.user.toString() === userId.toString() && a.status === 'accepted') ||
+             p.team.some(tm => tm.user && tm.user.toString() === userId.toString())) &&
+            p.lifecycleStage !== 'completed'
         ).length;
 
         // Calculate real match stats
@@ -61,7 +66,7 @@ const getDashboardStats = async (req, res) => {
         const stats = {
             matchesReceived: matchCount,
             projectsJoined: projectsJoined,
-            completedProjects: applications.filter(p => p.projectStatus === 'completed').length,
+            completedProjects: applications.filter(p => p.lifecycleStage === 'completed').length,
             matchScore: avgScore
         };
 
@@ -77,15 +82,20 @@ const getApplications = async (req, res) => {
     const userId = req.userId;
     const profile = await CollaboratorProfile.findOne({ userId });
 
-    const projects = await Project.find({
-      "applicants.user": userId
-    })
+    const query = {
+      "applicants.user": new mongoose.Types.ObjectId(userId.toString())
+    };
+    console.log("Fetching applications with query:", JSON.stringify(query));
+
+    const projects = await Project.find(query)
     .populate("owner", "fullName avatar");
+
+    console.log(`Found ${projects.length} projects for applications`);
 
     const applications = projects
       .map(project => {
         const application = project.applicants.find(app => 
-          app.user && app.user.toString() === userId
+          app.user && app.user.toString() === userId.toString()
         );
         
         // Skip if application not found

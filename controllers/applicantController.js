@@ -185,6 +185,17 @@ const acceptApplicant = async (req, res) => {
       project.collaborators.push(applicant.user);
     }
 
+    // Fix: Also add to team if not already present
+    // This allows access (isMember=true) even if accepted after lifecycle transition checks
+    const alreadyInTeam = project.team.some(tm => tm.user.toString() === applicant.user.toString());
+    if (!alreadyInTeam) {
+        project.team.push({
+            user: applicant.user,
+            role: applicant.roleAppliedFor || "Collaborator",
+            joinedAt: new Date()
+        });
+    }
+
     await project.save();
 
     // Create notification for applicant

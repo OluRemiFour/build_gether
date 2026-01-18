@@ -21,7 +21,8 @@ const {
   getOwnerDashboardStats,
   updateProject,
   markProjectAsCompleted,
-  completeTeamSelection
+  completeTeamSelection,
+  leaveProject
 } = require("../controllers/projectController.js");
 const router = express.Router();
 // Project Routes
@@ -79,6 +80,11 @@ router.patch(
   protect,
   authorize("project_owner"),
   markProjectAsCompleted
+);
+router.patch(
+  "/:projectId/leave",
+  protect,
+  leaveProject
 );
 router.patch(
   "/:projectId/complete-selection",

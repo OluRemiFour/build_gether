@@ -289,7 +289,14 @@ const markProjectAsCompleted = async (req, res) => {
     res.status(200).json({ 
         success: true,
         message: "Project marked as completed", 
-        project: populatedProject
+        project: {
+            ...populatedProject.toObject(),
+            ownerId: project.owner,
+            permissions: {
+                isOwner: true,
+                isMember: true
+            }
+        }
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -532,8 +539,17 @@ const getProjectById = async (req, res) => {
       app.user && app.user.toString() === userId
     )?.status || null : null;
     
+    // Compute permissions server-side to avoid ID mismatch issues
+    const isOwner = userId && project.owner && (project.owner._id.toString() === userId.toString() || project.owner.toString() === userId.toString());
+    const isMember = userId && project.team.some(m => m.user && m.user.toString() === userId.toString());
+
     const projectData = {
       ...project.toObject(),
+      ownerId: project.owner,  // Still useful for display
+      permissions: {
+          isOwner: !!isOwner,
+          isMember: !!isMember
+      },
       matchScore,
       matchReasons,
       hasApplied,
@@ -656,6 +672,14 @@ const completeTeamSelection = async (req, res) => {
     const { projectId } = req.params;
 
     const project = await Project.findOne({ _id: projectId, owner: userId });
+    
+    console.log(`[completeTeamSelection] Requesting User: ${userId}`);
+    if (project) {
+        console.log(`[completeTeamSelection] Found Project Owner (Raw): ${project.owner}`);
+    } else {
+        console.log(`[completeTeamSelection] Project NOT found for User: ${userId}`);
+    }
+
     if (!project) {
       return res.status(404).json({ message: "Project not found or unauthorized" });
     }
@@ -682,14 +706,49 @@ const completeTeamSelection = async (req, res) => {
         .populate('owner', 'fullName avatar')
         .populate('team.user', 'fullName avatar');
 
+    console.log(`[completeTeamSelection] Populated Owner ID: ${populatedProject.owner?._id}`);
+    
     res.status(200).json({ 
         success: true,
         message: "Team selection completed. Project is now ongoing.", 
-        project: populatedProject 
+        project: {
+            ...populatedProject.toObject(),
+            ownerId: project.owner,
+            permissions: {
+                isOwner: true, // Known because performable only by owner
+                isMember: true // Owner is implicitly member or manager
+            }
+        }
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+const leaveProject = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const userId = req.userId;
+
+        const project = await Project.findById(projectId);
+        if (!project) return res.status(404).json({ message: "Project not found" });
+
+        // Check if user is in team
+        const teamIndex = project.team.findIndex(m => m.user.toString() === userId);
+        if (teamIndex === -1) {
+            return res.status(400).json({ message: "You are not a member of this project team" });
+        }
+
+        // Remove from team
+        project.team.splice(teamIndex, 1);
+        
+        // Also update any other status if needed? No, just remove from team.
+        await project.save();
+
+        res.json({ success: true, message: "You have left the project" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };
 
 module.exports = {
@@ -713,4 +772,5 @@ module.exports = {
   updateProject,
   markProjectAsCompleted,
   completeTeamSelection,
+  leaveProject,
 };

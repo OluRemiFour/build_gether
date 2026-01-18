@@ -291,7 +291,7 @@ const markProjectAsCompleted = async (req, res) => {
         message: "Project marked as completed", 
         project: {
             ...populatedProject.toObject(),
-            ownerId: project.owner,
+            ownerId: project.owner?._id || project.owner,
             permissions: {
                 isOwner: true,
                 isMember: true
@@ -503,6 +503,14 @@ const getAllApplicants = async (req, res) => {
   }
 };
 
+// Helper for Safe ID Extraction
+const safeId = (val) => {
+    if (!val) return null;
+    if (val._id) return val._id.toString(); // Handle populated object or ObjectId object
+    if (val.id) return val.id.toString();
+    return val.toString(); // Handle string ID
+};
+
 const getProjectById = async (req, res) => {
   try {
     const userId = req.userId;
@@ -530,25 +538,29 @@ const getProjectById = async (req, res) => {
       
       // Check if user has already applied
       hasApplied = project.applicants.some(app => 
-        app.user && app.user.toString() === userId.toString()
+        safeId(app.user) === safeId(userId)
       );
     }
     
     // Get applicant status if user has applied
     const applicantStatus = userId ? project.applicants.find(app => 
-      app.user && app.user.toString() === userId
+      safeId(app.user) === safeId(userId)
     )?.status || null : null;
     
-    // Compute permissions server-side to avoid ID mismatch issues
-    const isOwner = userId && project.owner && (project.owner._id.toString() === userId.toString() || project.owner.toString() === userId.toString());
-    const isMember = userId && project.team.some(m => m.user && m.user.toString() === userId.toString());
+    // Compute permissions server-side with Standardized ID Comparison
+    const currentUserId = safeId(userId);
+    const ownerId = safeId(project.owner);
+    
+    const isOwner = !!(currentUserId && ownerId && currentUserId === ownerId);
+    // Handle both populated team.user objects and raw IDs using safeId
+    const isMember = !!(currentUserId && project.team.some(m => safeId(m.user) === currentUserId));
 
     const projectData = {
       ...project.toObject(),
-      ownerId: project.owner,  // Still useful for display
+      ownerId: ownerId, // Return purely the string ID
       permissions: {
-          isOwner: !!isOwner,
-          isMember: !!isMember
+          isOwner,
+          isMember
       },
       matchScore,
       matchReasons,
@@ -713,7 +725,7 @@ const completeTeamSelection = async (req, res) => {
         message: "Team selection completed. Project is now ongoing.", 
         project: {
             ...populatedProject.toObject(),
-            ownerId: project.owner,
+            ownerId: safeId(project.owner),
             permissions: {
                 isOwner: true, // Known because performable only by owner
                 isMember: true // Owner is implicitly member or manager

@@ -400,8 +400,6 @@ const getAllProjects = async (req, res) => {
     const userId = req.userId;
     const profile = await CollaboratorProfile.findOne({ userId });
 
-    const profile = await CollaboratorProfile.findOne({ userId });
-
     const projects = await Project.find({ 
         projectStatus: "active",
         isDeleted: { $ne: true } 

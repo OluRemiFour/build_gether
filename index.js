@@ -45,6 +45,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/chat", require("./routes/chatRoutes"));
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -70,8 +70,6 @@ const updateProject = async (req, res) => {
     const { projectId } = req.params;
     const updates = req.body;
     
-    // Ensure only owner can update
-    // Depending on middleware, req.userId or req.user.id is set
     const userId = req.userId || req.user.id;
 
     const project = await Project.findOne({ _id: projectId, owner: userId });
@@ -80,8 +78,6 @@ const updateProject = async (req, res) => {
       return res.status(404).json({ message: "Project not found or unauthorized" });
     }
 
-    // Prevent updating sensitive fields if necessary, but generally allow full update
-    // excluding owner and applicants structure directly might be safe
     const allowedUpdates = [
         "projectTitle", "projectDescription", "projectStatus", 
         "rolesNeeded", "techStack", "projectDetails"
@@ -106,52 +102,15 @@ const updateProject = async (req, res) => {
   }
 };
 
-// const getTotalProjects = async (req, res) => {
-//   try {
-//     const { userId } = req.params;
-
-//     if (!userId) {
-//       return res.status(400).json({
-//         message: "User ID is required",
-//       });
-//     }
-
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({
-//         message: "User not found",
-//       });
-//     }
-
-//     const projects = await Project.find({ userId });
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Projects fetched successfully",
-//       data: {
-//         projects,
-//         total: projects.length,
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error fetching projects:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch projects",
-//       error: error.message,
-//     });
-//   }
-// };
 
 const getTotalProjects = async (req, res) => {
   try {
-    // Get user ID from req.userId (set by your protect middleware)
     const userId = req.userId;
     
-    console.log("User ID from token:", userId);
-    console.log("User role:", req.userRole);
+    // console.log("User ID from token:", userId);
+    // console.log("User role:", req.userRole);
 
-    // Validate user ID
+    // // Validate user ID
     if (!userId) {
       return res.status(400).json({
         success: false,
@@ -339,7 +298,7 @@ const unarchiveProject = async (req, res) => {
 };
 const deleteProject = async (req, res) => {
   const projectId = req.params.projectId;
-  const owner = req.userId || req.user.userId; // Handle potentially different middleware props
+  const owner = req.userId || req.user.userId; 
   try {
     const projectToRemove = await Project.findOneAndDelete({ _id: projectId, owner });
     

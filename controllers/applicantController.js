@@ -47,32 +47,6 @@ const getSingleApplicant = async (req, res) => {
   }
 };
 
-// const getPendingApplicants = async (req, res) => {
-//   try {
-//     const pendingApplicants = await Applicant.find({ status: "pending" })
-//       .populate("collaboratorId")
-//       .populate("projectId");
-//     res.status(200).json({
-//       message: "Pending applicants fetched successfully",
-//       pendingApplicants,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-// const getAcceptedApplicants = async (req, res) => {
-//   try {
-//     const acceptedApplicants = await Applicant.find({ status: "accepted" })
-//       .populate("collaboratorId")
-//       .populate("projectId");
-//     res.status(200).json({
-//       message: "Accepted applicants fetched successfully",
-//       acceptedApplicants,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
 
 const getApplicantStats = async (req, res) => {
   try {
@@ -123,24 +97,6 @@ const getRejectedApplicants = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// const acceptApplicant = async (req, res) => {
-//   try {
-//     const applicantId = req.params.applicantId;
-//     try {
-//       const applicant = await Applicant.findById(applicantId);
-//       if (!applicant) {
-//         return res.status(404).json({ message: "Applicant not found" });
-//       }
-//       applicant.status = "accepted";
-//       await applicant.save();
-//       res
-//         .status(200)
-//         .json({ message: "Applicant accepted successfully", applicant });
-//     } catch (error) {
-//       res.status(500).json({ message: error.message });
-//     }
-//   } catch (error) {}
-// };
 
 const rejectApplicant = async (req, res) => {
   try {

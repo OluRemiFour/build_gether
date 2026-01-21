@@ -8,11 +8,10 @@ const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
     const conversations = await Conversation.find({ participants: userId })
-      .populate("participants", "fullName avatar email role") // Populate basic user info
-      .populate("project", "projectTitle") // Populate project title if linked
+      .populate("participants", "fullName avatar email role") 
+      .populate("project", "projectTitle") 
       .sort({ updatedAt: -1 });
 
-    // Format for frontend
     const formattedConversations = await Promise.all(conversations.map(async (conv) => {
       // Find the "other" participant
       const otherParticipant = conv.participants.find(p => p._id.toString() !== userId);
@@ -81,10 +80,6 @@ const sendMessage = async (req, res) => {
     const senderId = req.user.id;
 
     let conversation;
-
-    // Check if conversation already exists between these two users (optionally scoped to project)
-    // For now, let's keep it simple: one conversation per pair of users
-    // If projectId is provided, we could verify if a conv exists for that project
     
     // Attempt to find existing conversation
     conversation = await Conversation.findOne({
@@ -98,7 +93,7 @@ const sendMessage = async (req, res) => {
       }
       conversation = await Conversation.create({
         participants: [senderId, recipientId],
-        project: projectId || null, // Optional link to project context
+        project: projectId || null, 
         lastMessage: text,
         lastMessageAt: Date.now()
       });

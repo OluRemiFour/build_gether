@@ -713,24 +713,41 @@ const leaveProject = async (req, res) => {
         if (!project) return res.status(404).json({ message: "Project not found" });
 
         let removed = false;
+        console.log('hello leave')
+        console.log(`[leaveProject] ProjectId: ${projectId}, userId: ${userId}`);
+        console.log(`[leaveProject] Team: ${JSON.stringify(project.team.map(m => m.user))}`);
+        console.log(`[leaveProject] Applicants: ${JSON.stringify(project.applicants.map(a => a.user))}`);
 
         // Check if user is in team
-        const teamIndex = project.team.findIndex(m => m.user.toString() === userId);
+        const teamIndex = project.team.findIndex(m => m.user && m.user.toString() === userId.toString());
         if (teamIndex !== -1) {
             project.team.splice(teamIndex, 1);
             removed = true;
+            console.log(`[leaveProject] Removed from team`);
         }
 
         // Check if user is in applicants (even if accepted but not in team yet)
-        const applicantIndex = project.applicants.findIndex(a => a.user && a.user.toString() === userId);
+        const applicantIndex = project.applicants.findIndex(a => a.user && a.user.toString() === userId.toString());
         if (applicantIndex !== -1) {
              // Optional: You might want to just set status to 'withdrawn' instead of deleting
              // For now, removing to cleaner exit logic
              project.applicants.splice(applicantIndex, 1);
              removed = true;
+             console.log(`[leaveProject] Removed from applicants`);
+        }
+
+        // Check if user is in invites
+        if (project.invites) {
+             const inviteIndex = project.invites.findIndex(i => i.user && i.user.toString() === userId.toString());
+             if (inviteIndex !== -1) {
+                 project.invites.splice(inviteIndex, 1);
+                 removed = true;
+                 console.log(`[leaveProject] Removed from invites`);
+             }
         }
 
         if (!removed) {
+             console.log(`[leaveProject] Failed to find user in any list`);
              return res.status(400).json({ message: "You are not a member or applicant of this project" });
         }
 

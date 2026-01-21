@@ -113,7 +113,10 @@ const getApplications = async (req, res) => {
           owner: {
             name: project.owner?.fullName || "Unknown",
             avatar: project.owner?.avatar || ""
-          }
+          },
+          status: project.projectStatus,
+          lifecycleStage: project.lifecycleStage,
+          isDeleted: project.isDeleted || false
         },
         status: application.status || "pending",
         role: application.roleAppliedFor || "collaborator",

@@ -164,6 +164,7 @@ const getActiveProjects = async (req, res) => {
     const activeProject = await Project.find({
       projectStatus: "active",
       owner,
+      isDeleted: { $ne: true }
     });
     res.status(200).json({
       message: "Active projects fetched successfully",
@@ -300,11 +301,15 @@ const deleteProject = async (req, res) => {
   const projectId = req.params.projectId;
   const owner = req.userId || req.user.userId; 
   try {
-    const projectToRemove = await Project.findOneAndDelete({ _id: projectId, owner });
+    const project = await Project.findOne({ _id: projectId, owner });
     
-    if (!projectToRemove) {
+    if (!project) {
       return res.status(404).json({ message: "Project not found or unauthorized" });
     }
+
+    project.isDeleted = true;
+    project.projectStatus = "cancelled"; // Optionally mark status as cancelled too
+    await project.save();
     
     res.status(200).json({ message: "Project removed successfully" });
   } catch (error) {
@@ -395,7 +400,12 @@ const getAllProjects = async (req, res) => {
     const userId = req.userId;
     const profile = await CollaboratorProfile.findOne({ userId });
 
-    const projects = await Project.find({ projectStatus: "active" })
+    const profile = await CollaboratorProfile.findOne({ userId });
+
+    const projects = await Project.find({ 
+        projectStatus: "active",
+        isDeleted: { $ne: true } 
+    })
       .populate("owner", "fullName avatar")
       .sort({ createdAt: -1 });
 
@@ -704,16 +714,28 @@ const leaveProject = async (req, res) => {
         const project = await Project.findById(projectId);
         if (!project) return res.status(404).json({ message: "Project not found" });
 
+        let removed = false;
+
         // Check if user is in team
         const teamIndex = project.team.findIndex(m => m.user.toString() === userId);
-        if (teamIndex === -1) {
-            return res.status(400).json({ message: "You are not a member of this project team" });
+        if (teamIndex !== -1) {
+            project.team.splice(teamIndex, 1);
+            removed = true;
         }
 
-        // Remove from team
-        project.team.splice(teamIndex, 1);
-        
-        // Also update any other status if needed? No, just remove from team.
+        // Check if user is in applicants (even if accepted but not in team yet)
+        const applicantIndex = project.applicants.findIndex(a => a.user && a.user.toString() === userId);
+        if (applicantIndex !== -1) {
+             // Optional: You might want to just set status to 'withdrawn' instead of deleting
+             // For now, removing to cleaner exit logic
+             project.applicants.splice(applicantIndex, 1);
+             removed = true;
+        }
+
+        if (!removed) {
+             return res.status(400).json({ message: "You are not a member or applicant of this project" });
+        }
+
         await project.save();
 
         res.json({ success: true, message: "You have left the project" });

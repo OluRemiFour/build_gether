@@ -72,13 +72,27 @@ const updateTaskStatus = async (req, res) => {
     // Create notification for assignee (if updated by owner) or owner (if updated by assignee)
     const recipient = userId.toString() === task.project.owner.toString() ? task.assignee : task.project.owner;
     if (recipient) {
-      await Notification.create({
-        recipient,
-        sender: userId,
-        type: "task_updated",
-        project: task.project._id,
-        text: `Task "${task.title}" has been updated to ${status}`,
-      });
+      let notificationText = "";
+      let type = "task_updated"; // Default type
+
+      if (status && note) {
+         notificationText = `Task "${task.title}" updated to ${status} and a note was added`;
+      } else if (status) {
+         notificationText = `Task "${task.title}" has been updated to ${status}`;
+      } else if (note) {
+         notificationText = `New note added to task "${task.title}"`;
+         type = "task_updated"; // Or generic message
+      }
+
+      if (notificationText) {
+          await Notification.create({
+            recipient,
+            sender: userId,
+            type: type,
+            project: task.project._id,
+            text: notificationText,
+          });
+      }
     }
 
     res.status(200).json({ success: true, message: "Task updated successfully", task });
